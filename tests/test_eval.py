@@ -85,6 +85,19 @@ def test_invented_number_is_flagged():
     assert checks.ungrounded_numbers("1 XYZ = 1,234.5 IDR", ["ERROR: no rate found"]) == ["1,234.5"]
 
 
+def test_difference_and_percent_change_are_marked_computed():
+    outputs = ["Average 1 TWD = 533.77 IDR", "Average 1 TWD = 554.962 IDR"]
+    answer = "It rose by about 21.19 IDR (about a 3.97% increase)."
+    result = checks.classify_numbers(answer, outputs, structured_outputs=outputs)
+    assert result == {"ungrounded": [], "computed": ["21.19", "3.97"]}
+
+
+def test_computed_numbers_ignore_search_text():
+    outputs = ["Average 1 TWD = 533.77 IDR", "Average 1 TWD = 554.962 IDR"]
+    result = checks.classify_numbers("rose by 21.19", outputs, structured_outputs=[])
+    assert result["ungrounded"] == ["21.19"]
+
+
 def test_dates_years_small_numbers_and_question_numbers_are_ignored():
     answer = "On 2026-11-09 at 16:00, in Q1 2026, 1 USD for 2 days, as asked: 550"
     assert checks.ungrounded_numbers(answer, [], question="is it below 550?") == []

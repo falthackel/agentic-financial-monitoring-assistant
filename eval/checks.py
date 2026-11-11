@@ -147,27 +147,61 @@ def _is_trivial(readings: list) -> bool:
     return False
 
 
-def ungrounded_numbers(answer: str, tool_outputs: list, question: str = "") -> list:
+def _values(outputs: list) -> list:
+    return [value * multiplier
+            for output in outputs
+            for _, multiplier, readings in _numbers(output)
+            for value, _ in readings]
+
+
+def _computed_values(outputs: list) -> list:
+    """Differences and % changes between any two numbers (e.g. Q2 average minus Q1 average)."""
+    values = [v for v in set(_values(outputs)) if v >= 1]
+    computed = []
+    for a in values:
+        for b in values:
+            if a != b:
+                computed += [abs(a - b), abs(a - b) / b * 100]
+    return computed
+
+
+def _matches(readings: list, multiplier: float, candidates: list) -> bool:
+    """True if any reading equals a candidate, after rounding to the decimals shown."""
+    return any(
+        abs(value * multiplier - candidate) <= 0.5 * 10 ** -decimals * multiplier + 1e-9
+        for value, decimals in readings
+        for candidate in candidates
+    )
+
+
+def classify_numbers(answer: str, tool_outputs: list, question: str = "",
+                     structured_outputs: list = ()) -> dict:
     """
-    Numbers in the answer that don't match any number in the tool outputs.
-    A match allows rounding to the decimals shown in the answer, so
-    '32.88' matches a tool's '32.8793'.
+    Sort the numbers in the answer into:
+    - ungrounded: in no tool output, and not computed from tool numbers
+    - computed:   a difference or % change of two numbers from structured_outputs
+                  (correct arithmetic, but worth a look)
+    A match allows rounding to the decimals shown in the answer, so '32.88'
+    matches a tool's '32.8793'. Computed numbers only use structured tool
+    outputs: search text has so many numbers that almost anything would match.
     """
-    tool_values = [value * multiplier
-                   for output in tool_outputs
-                   for _, multiplier, readings in _numbers(output)
-                   for value, _ in readings]
+    tool_values = _values(tool_outputs)
+    computed_values = _computed_values(structured_outputs)
     question_tokens = {token for token, _, _ in _numbers(question)}
 
-    problems = []
+    result = {"ungrounded": [], "computed": []}
     for token, multiplier, readings in _numbers(answer):
         if not readings or _is_trivial(readings) or token in question_tokens:
             continue
-        grounded = any(
-            abs(value * multiplier - tool_value) <= 0.5 * 10 ** -decimals * multiplier + 1e-9
-            for value, decimals in readings
-            for tool_value in tool_values
-        )
-        if not grounded:
-            problems.append(token)
-    return problems
+        if _matches(readings, multiplier, tool_values):
+            continue
+        if _matches(readings, multiplier, computed_values):
+            result["computed"].append(token)
+        else:
+            result["ungrounded"].append(token)
+    return result
+
+
+def ungrounded_numbers(answer: str, tool_outputs: list, question: str = "") -> list:
+    """Numbers in the answer that don't match any number in the tool outputs."""
+    return classify_numbers(answer, tool_outputs, question)["ungrounded"]

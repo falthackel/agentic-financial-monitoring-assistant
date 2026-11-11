@@ -162,19 +162,22 @@ def score_case(case: dict, record: dict) -> dict:
 
     last_turn = record["turns"][-1]
     calls = [s for s in last_turn["steps"] if s["type"] == "tool_call"]
-    tool_outputs = [s["content"] for turn in record["turns"] for s in turn["steps"]
-                    if s["type"] == "tool_result"]
+    results = [s for turn in record["turns"] for s in turn["steps"] if s["type"] == "tool_result"]
+    tool_outputs = [s["content"] for s in results]
+    structured_outputs = [s["content"] for s in results if s["tool"] != "web_search"]
     questions = " ".join(turn["question"] for turn in record["turns"])
     run_date = datetime.date.fromisoformat(record["run_date"])
 
     problems = (checks.check_tools(case, calls, run_date)
                 + checks.check_answer(case, last_turn["answer"] or ""))
-    ungrounded = checks.ungrounded_numbers(last_turn["answer"] or "", tool_outputs, questions)
+    numbers = checks.classify_numbers(last_turn["answer"] or "", tool_outputs, questions,
+                                      structured_outputs)
     return {
         "status": "pass" if not problems else "fail",
         "problems": problems,
         "calls": calls,
-        "ungrounded": ungrounded,
+        "ungrounded": numbers["ungrounded"],
+        "computed": numbers["computed"],
         "answer": last_turn["answer"] or "",
     }
 
@@ -185,7 +188,11 @@ def _cell(text: str) -> str:
 
 
 def _short_call(call: dict) -> str:
-    return f"{call['tool']}({', '.join(str(v) for v in call['args'].values())})"
+    """get_average_exchange_rate(TWD, IDR, 2026-01-01, 2026-03-31), args in the tool's own order."""
+    from tools import ALL_TOOLS
+    order = {t.name: list(t.args) for t in ALL_TOOLS}.get(call["tool"], [])
+    keys = sorted(call["args"], key=lambda k: order.index(k) if k in order else len(order))
+    return f"{call['tool']}({', '.join(str(call['args'][k]) for k in keys)})"
 
 
 def _status_cell(score: dict) -> str:
@@ -195,9 +202,11 @@ def _status_cell(score: dict) -> str:
 def _grounding_cell(score: dict) -> str:
     if score["status"] not in ("pass", "fail"):
         return "–"
-    if not score["ungrounded"]:
-        return "✅"
-    return "⚠️ " + ", ".join(score["ungrounded"])
+    if score["ungrounded"]:
+        return "⚠️ " + ", ".join(score["ungrounded"])
+    if score["computed"]:
+        return "✅ (computed: " + ", ".join(score["computed"]) + ")"
+    return "✅"
 
 
 def write_report():
@@ -219,7 +228,8 @@ def write_report():
         "**How to read this**",
         "- **Result** checks tool choice and arguments (plus a required word in the answer for some cases).",
         "- **Numbers** is a separate check: ✅ means every number in the answer appears in a tool output. "
-        "⚠️ lists numbers that don't. These can be invented, or just computed (e.g. a difference), "
+        "\"computed\" marks numbers that are a difference or % change of two tool numbers "
+        "(correct arithmetic, not copied). ⚠️ lists numbers found nowhere: possibly invented, "
         "so they need a human look.",
         "- The model ignores temperature, so results can change between runs. "
         "One run per case is a sample, not a guarantee.",
