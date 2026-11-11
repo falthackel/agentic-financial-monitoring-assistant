@@ -42,7 +42,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T22 | M5 | Prompt v2 from eval failures, re-run (13/13), write iteration log | 2026-11-11 | 2026-11-11 | done | `f325e8a`, `0a658bf`, `docs/prompt_iterations.md` |
 | T30 | M5 | Make prompt v2 the default for the chat | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-11 | 2026-11-11 | done | `e5de560`, GitHub `main` |
-| T24 | M6 | `demo_script.md`, clean run, backup recording | 2026-11-15 | 2026-11-15 | planned | |
+| T31 | M6 | Write `demo_script.md` | 2026-11-11 | 2026-11-11 | done | see technical log |
+| T24 | M6 | Clean run + backup recording (Farrel) | 2026-11-15 | 2026-11-15 | planned | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
@@ -80,7 +81,8 @@ gantt
 
     section Release
     README final + GitHub push (T23)         :done, t23, 2026-11-11, 1d
-    Demo script + recording (T24)            :t24, 2026-11-15, 1d
+    Demo script written (T31)                :done, t31, 2026-11-11, 1d
+    Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
     Demo day (T27)                     :milestone, t27, 2026-11-17, 0d
@@ -197,3 +199,8 @@ gantt
 - Secret scan of **all** commits: `.env` never committed, no Google key pattern in any diff.
 - The repo is public, so the local project plan and the learning notes were removed from **all** commits before the first push (`git filter-branch`, backup bundle kept). Personal details in old versions of this log were neutralized at the same time. Commit hashes changed, so every hash in this log and in `prompt_iterations.md` was updated to the new ones. Both files are now in `.gitignore` and stay on disk.
 - Branch renamed `master` → `main`. Pushed to https://github.com/falthackel/agentic-financial-monitoring-assistant.
+
+**M6: demo script**
+- Wrote `demo_script.md`: a checklist for before the demo (quota reset time, terminal, test question), 6 questions in one conversation (table → follow-up → gold per gram → unknown code with fallback → "why" with source → off-topic), what to point at and say for each, a closing tour of the eval and the prompt log, a 2–3 minute recording plan, and what to do if something fails live.
+- Order chosen so each question shows one new thing, the follow-up comes right after the question it depends on, and the error case comes before the prompt-fix story.
+- Not yet rehearsed live: the full script uses about 15–20 Gemini requests.

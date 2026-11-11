@@ -29,6 +29,7 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ├── docs/README.md      # Detailed project documentation
 ├── docs/dev_log.md     # Development log: task timeline + technical notes
 ├── docs/prompt_iterations.md  # Prompt changes: failure → fix → measured result
+├── demo_script.md      # Step-by-step live demo (questions, what to show)
 ├── flowchart.svg       # Architecture diagram (image)
 ├── requirements.txt    # Pinned Python packages
 ├── requirements-dev.txt # requirements.txt + pytest
