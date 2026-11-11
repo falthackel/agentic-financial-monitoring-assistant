@@ -368,8 +368,6 @@ def web_search(query: str) -> str:
         query: kata kunci pencarian, contoh 'harga bitcoin ke IDR hari ini'
     """
     _log(f"🔧 [TOOL DIPANGGIL] web_search({query!r})")
-    _log("↳ [KENAPA] tool data terstruktur sebelumnya tidak bisa menjawab, "
-         "agent memutuskan mencoba mencari di internet")
     try:
         results = DDGS().text(query, max_results=4)
         if not results:
