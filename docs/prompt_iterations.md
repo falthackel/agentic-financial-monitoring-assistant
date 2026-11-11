@@ -12,6 +12,7 @@ Each prompt change is listed with the failure that caused it, the evidence, the 
 |---|---|---|---|---|
 | v1 | 2026-11-11 | Original prompt, translated to English | 12/13 | 13/13 |
 | v2 | 2026-11-11 | + Rule A (cite search for "why" questions), + Rule B (past-date tool) | **13/13** | 13/13 |
+| v2 (re-run) | 2026-11-11 | No prompt change. Tool fix: IHSG history; 2 new cases | **15/15** | 15/15 |
 
 Model: `gemini-3.5-flash-lite`. One run per case per version. The model ignores temperature, so results vary between runs (see [Limits](#limits-of-this-evidence)).
 
@@ -127,6 +128,20 @@ All three were checked by hand first, and each has a unit test (`tests/test_eval
 - **One run per case.** The model ignores temperature, so `causal_why` could pass or fail on another run with either prompt. 1/1 vs 0/1 is a signal, not proof. Running `causal_why` several times per version would make it stronger.
 - **The word check is easy to game.** Rule A says "According to ...", and the check looks for "according". So the hand check of every claim against the search results is the real evidence here, not the ✅.
 - **The search query is a weak spot.** "TWD" matched The Walking Dead. Neither prompt tells the model to spell out currency names in search queries.
+
+---
+
+## After v2: a tool fix and a re-run (no prompt change)
+
+**IHSG history (rehearsal finding F1).** A rehearsal showed the agent couldn't answer IHSG history questions. This was a tool gap, not a prompt problem: the history tool only asked a currency API. `get_average_exchange_rate` now also covers IHSG (from yfinance), and its description says so. Two eval cases were added. **v2 re-run on all 15 cases: 15/15 tool choice, 15/15 grounded, no regressions.** The tool descriptions are part of what the model reads, so v1's results (13 cases, old descriptions) are not a like-for-like comparison with this run.
+
+**Finding F2: an invented source name.** In this re-run, `causal_why` passed the eval, but a hand check found:
+
+> "According to recent reports (such as from *Focus Taiwan* or similar financial news updates), a strong rally in Taiwan stocks has driven the TWD to reverse its depreciation trend…"
+
+Both causes are in the search results. "Focus Taiwan" is **not**. The real cause is in the tool, not the prompt: `web_search` gives the model each result's title and text, but not the website. Rule A asks the model to name sources it was never given, so it either stays vague ("market reports", first v2 run) or guesses (this run).
+
+**Lesson:** a prompt rule can only be followed if the tools supply what the rule needs. Planned fix: include each result's site in the `web_search` output, and add an eval check that every source named in an answer appears in the search results.
 
 ---
 

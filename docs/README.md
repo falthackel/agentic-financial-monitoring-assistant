@@ -170,7 +170,7 @@ What this shows:
 
 ## Evaluation
 
-13 test questions in [eval/eval_cases.yaml](../eval/eval_cases.yaml), each with the tools (and arguments) the agent should use. They cover every tool, a follow-up question, an unknown currency code, an off-topic question, a relative date, and a question in Indonesian.
+15 test questions in [eval/eval_cases.yaml](../eval/eval_cases.yaml), each with the tools (and arguments) the agent should use. They cover every tool, a follow-up question, an unknown currency code, an off-topic question, a relative date, IHSG history, and a question in Indonesian.
 
 Three separate scores per case:
 - **Tool choice + arguments:** the right tool, with the right inputs (e.g. Q1 2026 → `2026-01-01` to `2026-03-31`)
@@ -180,7 +180,9 @@ Three separate scores per case:
 | Prompt | Tool choice pass | Numbers grounded | Main failure |
 |---|---|---|---|
 | v1 | 12/13 | 13/13 | `causal_why`: causes stated as facts, not attributed to the search |
-| v2 | 13/13 | 13/13 | none failed; `causal_why` names sources only loosely ("market reports") |
+| v2 | 15/15 | 15/15 | none failed. Hand check: `causal_why` once named a source ("Focus Taiwan") that is not in the search results |
+
+The two IHSG cases were added after a rehearsal found that IHSG history wasn't supported. v2 was re-run on all 15 cases after that fix. v1 has no run for the 2 new cases.
 
 Full table: [eval/results.md](../eval/results.md). Raw runs (every tool call and answer): [eval/runs/](../eval/runs/).
 
@@ -205,7 +207,7 @@ The chat uses v2 by default. To try another version, set `PROMPT_VERSION`, e.g. 
 ## Known limitations
 
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
-- IHSG history is not supported yet: the agent can give today's IHSG, but not an average or a comparison over past dates (`get_average_exchange_rate` only covers currencies). Planned fix.
+- Web search results reach the model without the website name, so when asked "why", the agent can't always name a real source, and once named one that wasn't in the results. Planned fix: include each result's site.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
 - The log stores a short summary of each web search ("found 4 results"), not the result text. To check a claim later, you have to repeat the search (the eval's `eval/runs/*.json` does keep full results).

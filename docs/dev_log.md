@@ -45,7 +45,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T31 | M6 | Write `demo_script.md` | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T24 | M6 | Clean run + backup recording (Farrel) | 2026-11-15 | 2026-11-15 | planned | |
 | T32 | Rehearsal | Partial rehearsal by Farrel; found F1: no IHSG history | 2026-11-11 | 2026-11-11 | done | see technical log |
-| T33 | Fix | F1: IHSG history (average / compare periods) | 2026-11-12 | 2026-11-12 | planned | |
+| T33 | Fix | F1: IHSG history (average / compare periods), v2 re-run 15/15 | 2026-11-11 | 2026-11-11 | done | `78aeebb`, `eval/results.md` |
+| T34 | Fix | F2: web_search gives no source names, so the agent invented one | 2026-11-12 | 2026-11-12 | planned | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
@@ -85,7 +86,8 @@ gantt
     README final + GitHub push (T23)         :done, t23, 2026-11-11, 1d
     Demo script written (T31)                :done, t31, 2026-11-11, 1d
     Partial rehearsal, finding F1 (T32)      :done, t32, 2026-11-11, 1d
-    Fix F1: IHSG history (T33)               :t33, 2026-11-12, 1d
+    Fix F1: IHSG history (T33)               :done, t33, 2026-11-11, 1d
+    Fix F2: source names in search (T34)     :t34, 2026-11-12, 1d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
@@ -219,3 +221,23 @@ gantt
 - **Effect:** the agent can only fall back to `web_search`, which can't reliably compute an average over a date range.
 - **Why the eval missed it:** none of the 13 cases asks for IHSG history. A case will be added with the fix, so this stays covered.
 - **Status:** recorded, fix planned (T33). Fix options are listed in the next entry once chosen.
+
+### 2026-11-11 · Fix F1: IHSG history
+- **Chosen (Farrel): option A**, extend `get_average_exchange_rate` instead of adding a 5th tool. This keeps the 4-tool design, and fewer tools means fewer wrong choices for the model.
+- **Data check first:** today's IHSG (5,115) is about 37% below the Q1 average (8,185). The monthly yfinance data showed a steady fall all year with no gaps (largest day −11.6% on Oct 16), so the comparison is valid.
+- `78aeebb` in `tools.py`:
+  - `from_currency="IHSG"` uses yfinance `^JKSE` daily closes (`_get_index_history`), with both dates included (yfinance's end date is exclusive, so +1 day). No data → `ERROR:` with "the market may have been closed".
+  - Tool descriptions say the history tool covers IHSG. The model only sees descriptions, so this is how it learns the new ability.
+  - The price table shows IHSG in **index points** (`5,115.04 pts`), not `Rp`, which was a wrong unit.
+  - yfinance's "possibly delisted" message for days without trading is hidden (it was false and alarming on screen).
+  - 7 new unit tests (58 total), 2 new eval cases: `ihsg_average`, `ihsg_today_vs_history`.
+- **v2 re-run, all 15 cases** (about 40 Gemini requests, 0 errors): **15/15 tool choice, 15/15 numbers grounded**, no regressions. v1 was not re-run, so its column shows "–" for the 2 new cases and was measured with the old tool descriptions.
+  - `ihsg_average`: 8,184.86 points, 55 trading days, min and max. Correct.
+  - `ihsg_today_vs_history`: called both tools (history + table) and compared 5,115.04 with 8,184.86 points. Correct.
+
+### 2026-11-11 · Finding F2: invented source name
+- **Found by:** hand check of `causal_why` in the v2 re-run (the eval passed it).
+- **Symptom:** the answer said "According to recent reports (such as from *Focus Taiwan* or similar financial news updates)". Both causes it gave (a stock rally, trade-deal speculation) are in the search results. But "Focus Taiwan" and "key psychological levels" appear **nowhere** in them.
+- **Cause:** `web_search` returns each result as `- title: text` and drops the site/URL that DuckDuckGo provides. Prompt v2 Rule A asks the model to "say which source each reason comes from", but the tool never tells it the source. The first v2 run fell back on "market reports". This run guessed a plausible name. The sample session's "Bloomberg" was correct only because it was in a title.
+- **Why the eval missed it:** the checks look for the word "according" and for grounded *numbers*, not for grounded *source names*.
+- **Planned fix (T34):** add each result's site to the `web_search` output (e.g. `[bloomberg.com]`) and an eval check that every source named in an answer appears in the search results.
