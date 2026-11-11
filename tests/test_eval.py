@@ -76,6 +76,8 @@ def test_check_answer_requires_a_word():
     ("1 USD = 31,79 TWD", "1 USD = 31.7929 TWD"),                           # decimal comma
     ("gold is Rp1.31 million per gram", "Rp1,310,450/g"),                   # word multiplier
     ("up 0.12% today", "🔺 +0.12%"),                                         # percent
+    ("about Rp 1,339,000,000 per BTC", "rate is Rp 1,339,621,582"),          # rounded to millions
+    ("XYZ is not an ISO 4217 code", "ERROR: no rate"),                       # standard name, not a value
 ])
 def test_grounded_numbers(answer, tool_output):
     assert checks.ungrounded_numbers(answer, [tool_output]) == []
@@ -83,6 +85,10 @@ def test_grounded_numbers(answer, tool_output):
 
 def test_invented_number_is_flagged():
     assert checks.ungrounded_numbers("1 XYZ = 1,234.5 IDR", ["ERROR: no rate found"]) == ["1,234.5"]
+
+
+def test_round_numbers_with_few_digits_stay_strict():
+    assert checks.ungrounded_numbers("about 16,000", ["1 USD = 16900 IDR"]) == ["16,000"]
 
 
 def test_difference_and_percent_change_are_marked_computed():

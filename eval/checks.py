@@ -90,7 +90,8 @@ NUMBER_PATTERN = re.compile(
     r"(?:\s*(million|juta|billion|miliar|thousand|ribu)\b)?",
     re.IGNORECASE,
 )
-DATE_OR_TIME = re.compile(r"\d{4}-\d{2}-\d{2}|\b\d{1,2}:\d{2}\b")
+# text that contains digits but is not a value: dates, times, the "ISO 4217" standard name
+NOT_A_VALUE = re.compile(r"\d{4}-\d{2}-\d{2}|\b\d{1,2}:\d{2}\b|ISO\s*4217", re.IGNORECASE)
 MULTIPLIERS = {"thousand": 1e3, "ribu": 1e3, "million": 1e6, "juta": 1e6,
                "billion": 1e9, "miliar": 1e9}
 
@@ -130,7 +131,7 @@ def _readings(token: str) -> list:
 
 def _numbers(text: str) -> list:
     """[(token, multiplier, readings)] for every number in the text (dates and times removed)."""
-    text = DATE_OR_TIME.sub(" ", text)
+    text = NOT_A_VALUE.sub(" ", text)
     found = []
     for match in NUMBER_PATTERN.finditer(text):
         token = re.match(r"[\d.,]+", match.group(0)).group(0)
@@ -165,10 +166,26 @@ def _computed_values(outputs: list) -> list:
     return computed
 
 
+def _tolerance(value: float, decimals: int) -> float:
+    """
+    How far off a shown number may be and still count as the same value.
+    Normally half of the last shown digit (32.88 covers 32.875 to 32.885).
+    A whole number ending in zeros, like 1,339,000,000, is rounded to its last
+    non-zero digit, so it may be up to one unit of that digit away. Only for
+    3+ significant digits, so '16,000' can't loosely match 16,900.
+    """
+    if decimals == 0 and value >= 1000:
+        digits = str(int(value))
+        trailing_zeros = len(digits) - len(digits.rstrip("0"))
+        if trailing_zeros >= 3 and len(digits) - trailing_zeros >= 3:
+            return 10 ** trailing_zeros
+    return 0.5 * 10 ** -decimals
+
+
 def _matches(readings: list, multiplier: float, candidates: list) -> bool:
-    """True if any reading equals a candidate, after rounding to the decimals shown."""
+    """True if any reading equals a candidate, after rounding to the digits shown."""
     return any(
-        abs(value * multiplier - candidate) <= 0.5 * 10 ** -decimals * multiplier + 1e-9
+        abs(value * multiplier - candidate) <= _tolerance(value, decimals) * multiplier + 1e-9
         for value, decimals in readings
         for candidate in candidates
     )
