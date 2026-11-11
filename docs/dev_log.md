@@ -33,9 +33,10 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T15 | Refactor | Split into `tools` / `prompts` / `agent` / `cli` / `trace_log` | 2026-11-11 | 2026-11-11 | done | `6b89e44` |
 | T16 | Docs | Simple main README + detailed `docs/README.md` | 2026-11-11 | 2026-11-11 | done | `e02b306` |
 | T17 | M2 | Show tool calls and results live in terminal | 2026-11-11 | 2026-11-11 | done | `d005dcc` |
-| T18 | Docs | Start this development log | 2026-11-11 | 2026-11-11 | done | this file |
-| T19 | M3 | Graceful error handling (Gemini 429, timeouts, missing key) | 2026-11-11 | 2026-11-12 | planned | |
-| T20 | M4b | Offline unit tests (pytest, mocked network) | 2026-11-11 | 2026-11-12 | planned | |
+| T18 | Docs | Start this development log | 2026-11-11 | 2026-11-11 | done | `07d6c11` |
+| T19 | M3 | Graceful error handling (Gemini 429, timeouts, missing key) | 2026-11-11 | 2026-11-11 | done | `ef0b1d2` |
+| T20 | M4b | Offline unit tests (pytest, mocked network): 32 tests | 2026-11-11 | 2026-11-11 | done | `753da25` |
+| T28 | M3 | First live smoke test after the changes (1 question) | 2026-11-11 | 2026-11-11 | done | technical log, Nov 11 |
 | T21 | M4 | Evaluation set (10–15 cases) + `run_eval.py`, run v1 | 2026-11-12 | 2026-11-13 | planned | |
 | T22 | M5 | Prompt v2 from eval failures, re-run, write iteration log | 2026-11-12 | 2026-11-13 | planned | |
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-14 | 2026-11-14 | planned | |
@@ -68,8 +69,9 @@ gantt
     English + error prefix + split (T14-T15) :done, t14, 2026-11-11, 1d
     README + dev log (T16, T18)              :done, t16, 2026-11-11, 1d
     M2 live tool display (T17)               :done, t17, 2026-11-11, 1d
-    M3 error handling (T19)                  :t19, 2026-11-11, 2d
-    M4b unit tests (T20)                     :t20, 2026-11-11, 2d
+    M3 error handling (T19)                  :done, t19, 2026-11-11, 1d
+    M4b unit tests (T20)                     :done, t20, 2026-11-11, 1d
+    Live smoke test (T28)                    :done, t28, 2026-11-11, 1d
     M4 evaluation, v1 (T21)                  :t21, 2026-11-12, 2d
     M5 prompt v2 (T22)                       :t22, 2026-11-12, 2d
 
@@ -127,4 +129,30 @@ gantt
 - History is saved only after the turn finishes, so a crash halfway doesn't leave a half-finished turn in memory.
 - Check: ran the real `create_agent` loop offline with a scripted fake model (instead of Gemini) that calls two tools, one good and one bad. Both calls and both results printed before the final answer.
 
-**Not yet checked live:** nothing has been run against Gemini since the changes. A live smoke test needs Farrel's OK (free-tier quota).
+**M3: error handling**
+- `ef0b1d2` In `agent.py`:
+  - The program stops at startup with a one-line message if `GOOGLE_API_KEY` is missing or still the placeholder. Before, the Gemini library crashed with a long stack trace as soon as the program started.
+  - Gemini now has `timeout=30, max_retries=2`. The library default is 6 retries, which uses up the free quota quickly.
+  - Any failure in a turn becomes `AgentRunError` with a kind: `quota` (429 / RESOURCE_EXHAUSTED), `timeout`, `auth`, or `other`. Logged as `[AGENT ERROR] kind: reason`.
+  - A turn with no final answer is an error. An answer with no text gets a fallback message.
+- In `cli.py`: `_answer()` shows a clear message per error kind and never lets the loop crash. Ctrl+C cancels only the current question.
+- In `tools.py`: yfinance timeout set explicitly (`YF_TIMEOUT = 10`).
+- History rollback was already done in M2 (history is saved only after a turn succeeds).
+
+**M4b: offline unit tests**
+- Installed `pytest==9.2.0` (Farrel's OK), listed in `requirements-dev.txt` so the main requirements stay small.
+- `753da25` 32 tests in `tests/`, none of them use Gemini or the internet:
+  - `test_tools.py`: EUR-pivot math (EUR as source or target, missing quote, empty response), `ERROR:` prefix on every tool failure, one-line failure log, price table with one or all assets failing.
+  - `test_agent.py`: runs the real `create_agent` loop with a scripted fake model. Checks M2 step events and CLI output, error kinds, history rollback (also when a turn fails halfway), empty answer fallback, the CLI continuing after an error, and the clear message for a placeholder API key.
+  - `conftest.py` sets a fake API key and sends the log to a temp folder, so tests never touch the real key or `agent_log.txt`.
+
+**Live smoke test** (Farrel's OK, 2 Gemini requests)
+- Saved the old `agent_log.txt` (Sep 16 session, K3 evidence) to `docs/evidence/` first, because a new session overwrites it.
+- Question "USD to TWD rate":
+  ```
+  🔧 get_exchange_rate(to_currency='TWD', from_currency='USD')
+  ✅ get_exchange_rate → 1 USD = 32.8793 TWD (as of 2026-11-11)
+  Agent: The current exchange rate is 1 USD = 32.8793 TWD (as of November 11, 2026).
+  ```
+  English prompt, split code, live steps, and the log all worked.
+- **Finding:** Gemini warned `Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; temperature will be ignored`. So `temperature=0` has no effect on this model. Answers can vary between runs, and the eval must allow for that.
