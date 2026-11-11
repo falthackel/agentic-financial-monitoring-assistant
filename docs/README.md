@@ -1,0 +1,116 @@
+# Project Details
+
+This page has the full background of the Currency & Asset Price Agent. For setup and running, see the [main README](../README.md).
+
+## Problem statement
+
+Currency and asset data comes from sources with different shapes:
+
+| Data | Source | How often it updates |
+|---|---|---|
+| Exchange rates (USD, SGD, TWD, EUR, ...) | Frankfurter API v2 | Once per working day |
+| Gold and silver (XAU, XAG) | Frankfurter API v2 | Once per working day |
+| IHSG (Jakarta stock index) | yfinance (`^JKSE`) | Every minute during market hours |
+| Crypto, news, "why did it move?" | DuckDuckGo search | Unstructured text |
+
+A fixed script would need one hard-coded path per question. Here, an LLM agent reads the question and decides which tool to call, whether it needs one call or several, and when to fall back to web search. The same pattern applies outside finance, for example combining clinical or sensor data that updates at different speeds.
+
+## User stories
+
+- As someone paid in TWD who sends money home in IDR, I want a one-line market summary, so I can decide when to transfer.
+- As a saver who buys small amounts of gold, I want the gold price per gram in rupiah, so I don't have to convert from USD per ounce myself.
+- As a user comparing periods, I want the average rate for Q1 vs Q2, so I can see the trend without a spreadsheet.
+- As a curious user, I want to ask "why did TWD go up?" and get an answer based on real news, not a made-up reason.
+
+## Scope
+
+**In scope**
+- Latest rates for fiat currency pairs and precious metals
+- Average, min and max rates over a date range
+- A multi-asset price table in IDR, with % change vs the previous day
+- Web search fallback for anything the structured tools can't answer
+- Follow-up questions within one session (conversation memory)
+
+**Out of scope**
+- Trading or investment advice
+- Real-time (per-second) exchange rates. Frankfurter is daily only
+- Crypto through structured data. Crypto only goes through web search
+- Long-term memory across sessions
+
+## Architecture
+
+```mermaid
+flowchart TD
+    A["User question (terminal)"] --> B["Agent (Gemini via LangChain create_agent)"]
+    B --> C{"Needs a tool?"}
+    C -- No --> H["Final answer"]
+    C -- Yes --> D["Tool call"]
+    D --> E1["get_price_table"]
+    D --> E2["get_exchange_rate"]
+    D --> E3["get_average_exchange_rate"]
+    D --> E4["web_search (fallback)"]
+    E1 --> F["Frankfurter API (FX, daily) / yfinance (IHSG, per minute)"]
+    E2 --> F
+    E3 --> F
+    E4 --> G["DuckDuckGo"]
+    F --> B
+    G --> B
+    H --> I["Saved to conversation history (context for the next turn)"]
+    H --> J["Tool-call trace written to agent_log.txt"]
+    H --> K["Answer printed"]
+```
+
+The agent repeats the loop (think, call a tool, read the result) until it has enough information to answer.
+
+### Code layout
+
+| File | Role |
+|---|---|
+| `currency_agent.py` | Entry point. Fixes Windows console encoding, then starts the chat |
+| `cli.py` | Terminal loop: reads input, handles `reset` / `exit` / ESC, prints answers |
+| `agent.py` | Creates the Gemini model and the LangChain agent, keeps the conversation history, runs one turn (`run_request`) |
+| `tools.py` | The 4 tools and their data helpers |
+| `prompts.py` | System prompt versions, kept side by side for comparison |
+| `trace_log.py` | Writes `agent_log.txt` |
+
+`agent.py` does not print anything itself, so the terminal, the evaluation script and a future UI can all reuse it.
+
+### How the tools work
+
+- **EUR pivot.** Frankfurter publishes rates against EUR. To get USD to TWD, the code fetches EUR to USD and EUR to TWD, then divides them.
+- **Gold.** Frankfurter gives gold in ounces. The table shows USD per troy ounce (the usual reference) plus Rp per gram and Rp per 0.01 gram (1 troy oz = 31.1035 g).
+- **"Last update" time.** For daily data the table shows the rate date plus the time we checked, because there is no real market time. For IHSG it shows the real market time of the last 1-minute price.
+- **Errors.** Every tool catches its own errors and returns text that starts with `ERROR:`. The agent can then try another tool instead of crashing. In the price table, one failed asset shows `FAILED` in its row and the rest of the table still works.
+
+## Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| LLM and agent loop | Google Gemini (`gemini-3.5-flash-lite`) via `langchain.agents.create_agent` | Free tier, built-in tool calling |
+| FX and metals data | Frankfurter API v2 | Free, no key. EUR-based and daily only, so it needs the pivot logic |
+| Stock index data | yfinance (`^JKSE`) | Has per-minute data |
+| Fallback search | DuckDuckGo (`ddgs`) | Covers what the other sources don't |
+| Config | `.env` + `python-dotenv` | Keeps the API key out of git |
+
+Python 3.10. All package versions are pinned in `requirements.txt`.
+
+## Sample session
+
+*To be added: a real captured session (no made-up numbers).*
+
+## Evaluation
+
+*To be added: a set of 10–15 test questions, which tools the agent should call for each, and pass/fail results per prompt version.*
+
+## Prompt iteration log
+
+*To be added: each prompt change, the failure that caused it, and the measured result.*
+
+## Known limitations
+
+- Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
+- yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
+- `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
+- The tool calls are only visible in `agent_log.txt` for now, not in the terminal.
+- A Gemini error (for example the free-tier rate limit) currently stops the program.
+- No automated tests yet.

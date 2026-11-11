@@ -1,109 +1,87 @@
 # Currency & Asset Price Agent
 
-A terminal-based agentic assistant that answers questions about currency exchange rates and IDR-denominated asset prices (USD, SGD, TWD, gold/silver, and the IHSG index) by reasoning over which data tool to call, reconciling multiple data sources, and falling back to web search when structured data fails.
+A terminal chat assistant that answers questions about exchange rates and asset prices in Indonesian rupiah (USD, SGD, TWD, gold, and the IHSG stock index). It is an **AI agent**: for each question, Gemini decides which data tool to call, and falls back to web search when the structured data can't answer.
 
-Built with **LangChain + Google Gemini**, **Frankfurter API**, and **yfinance**.
+## 1. Project background
 
----
+Financial data comes in different shapes. Exchange rates are published once a day, a stock index changes every minute, and some assets (like crypto) are not covered by either source. Instead of hard-coding one API call per question, this project lets an LLM agent choose:
 
-## Why this exists
+- **which tool** fits the question (one rate, an average over time, a full price table, or a web search),
+- **how to combine** sources with different update speeds,
+- **when to fall back** to a web search if a tool fails.
 
-Currency and commodity data comes from sources with genuinely different shapes: FX rates only publish daily, an equity index updates by the minute, and some assets (crypto, less common pairs) aren't covered by either. Rather than hardcoding one API call per asset, this project explores having an LLM agent decide *which* tool to call, *how* to combine results from sources with different granularities, and *when* to fall back to an unstructured search — a pattern that generalizes well beyond finance (e.g. reconciling multi-source clinical or sensor data with mismatched update frequencies).
+Built with **LangChain** (`create_agent`) and **Google Gemini**, using free data from the **Frankfurter API**, **yfinance**, and **DuckDuckGo**.
 
-## Features
+More detail (scope, architecture diagram, limitations, evaluation): [docs/README.md](docs/README.md)
 
-- **Multi-asset price table** — one query returns a formatted table across several assets at once, each correctly labeled with its actual data source and update cadence
-- **Cross-currency rate lookup** via EUR-pivot triangulation (Frankfurter only publishes EUR-based rates)
-- **Historical averages** over a custom date range, for comparing periods
-- **Automatic fallback to web search** (DuckDuckGo) when an asset isn't covered by the structured data tools
-- **Conversation memory** within a session, so follow-up questions like "why did it go up?" resolve correctly to the asset just discussed
-- **Full tool-call audit log** written to disk for every session, showing exactly which tool the agent picked and why
+## 2. Project directory
 
-## How it works
-
-```mermaid
-flowchart TD
-    A["User query (CLI)"] --> B["Agent (Gemini via LangChain create_agent)"]
-    B --> C{"Needs a tool?"}
-    C -- No --> H["Final answer"]
-    C -- Yes --> D["Tool call"]
-    D --> E1["get_price_table"]
-    D --> E2["get_exchange_rate"]
-    D --> E3["get_average_exchange_rate"]
-    D --> E4["web_search (fallback)"]
-    E1 --> F["Frankfurter API (FX, daily) / yfinance (IHSG, per-minute)"]
-    E2 --> F
-    E3 --> F
-    E4 --> G["DuckDuckGo"]
-    F --> B
-    G --> B
-    H --> I["Append to conversation history\n(context for next turn)"]
-    H --> J["Write tool-call trace to agent_log.txt"]
-    H --> K["Print response"]
+```
+.
+├── currency_agent.py   # Start here: runs the terminal chat
+├── cli.py              # Terminal input/output (ESC or 'exit' to quit, 'reset' to clear)
+├── agent.py            # Gemini model + LangChain agent + conversation memory
+├── tools.py            # The 4 tools the agent can call (see below)
+├── prompts.py          # System prompt versions
+├── trace_log.py        # Writes each tool call and result to agent_log.txt
+├── docs/README.md      # Detailed project documentation
+├── flowchart.svg       # Architecture diagram (image)
+├── requirements.txt    # Pinned Python packages
+└── .env.example        # Template for your API key
 ```
 
-The agent decides on its own whether a question needs one tool call, several, or none — the loop above repeats until it has enough information to answer.
+**The 4 tools** (in `tools.py`):
 
-## Tech stack
-
-| Layer | Choice | Why |
+| Tool | What it answers | Data source |
 |---|---|---|
-| LLM / agent loop | Google Gemini via `langchain.agents.create_agent` | Free tier, native tool-calling |
-| FX & metals data | Frankfurter API v2 | Free, no key, but EUR-based and daily-only — required explicit pivot logic |
-| Equity index data | yfinance (`^JKSE`) | Only source with true intraday granularity |
-| Fallback search | DuckDuckGo (`ddgs`) | Catches assets outside the two structured sources (e.g. crypto) |
-| Config | `.env` / `python-dotenv` | Keeps the API key out of source control |
+| `get_exchange_rate` | The latest rate for one pair, e.g. USD to TWD | Frankfurter (daily) |
+| `get_average_exchange_rate` | Average, min and max over a date range, e.g. Q1 vs Q2 | Frankfurter (daily) |
+| `get_price_table` | A price table in IDR for several assets, with % change | Frankfurter + yfinance (IHSG, per minute) |
+| `web_search` | Anything else, e.g. crypto or "why did TWD go up?" | DuckDuckGo |
 
-## Example session
+## 3. Environment setup
 
+You need **Python 3.10** and a free **Google Gemini API key** from [Google AI Studio](https://aistudio.google.com/apikey).
+
+**Windows (PowerShell):**
+
+```powershell
+git clone <this-repo-url>
+cd <repo-folder>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
 ```
-Anda: update harga hari ini
 
-Agent:
-| Aset | Harga | Perubahan (vs hari sebelumnya) | Update Terakhir |
-|---|---|---|---|
-| USD | Rp15,890.00 | 🔺 +0.12% | 2026-09-15 • dicek 09:41 |
-| SGD | Rp12,340.50 | 🔻 -0.05% | 2026-09-15 • dicek 09:41 |
-| TWD | Rp553.20 | 🔺 +0.18% | 2026-09-15 • dicek 09:41 |
-| Emas (XAU) | $2,610.40/oz | Rp1,310,450/gr (Rp13,105/0.01gr) | 🔺 +0.31% | 2026-09-15 • dicek 09:41 |
-| IHSG | Rp7,412.88 | 🔻 -0.22% | 2026-09-15 09:38 |
-
-Anda: kenapa TWD naik?
-
-Agent: Berdasarkan pencarian web, penguatan TWD hari ini terkait permintaan
-ekspor semikonduktor yang kuat dari Taiwan...
-```
-*(illustrative transcript — actual figures will differ per run)*
-
-Each session's full tool-call trace (which tool ran, its arguments, and its raw result) is written to `agent_log.txt` for debugging and transparency.
-
-## Setup
+**macOS / Linux:**
 
 ```bash
-# 1. Clone and install
-pip install -r requirements.txt   # langchain-google-genai, requests, yfinance, ddgs, python-dotenv
-
-# 2. Configure
+git clone <this-repo-url>
+cd <repo-folder>
+python3.10 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
-# add your GOOGLE_API_KEY (free from Google AI Studio)
-
-# 3. Run
-python currency_agent.py
 ```
 
-Type `reset` to clear conversation context, or press **Esc** (Windows) / `Ctrl+C` (other OS) to quit.
+Then open `.env` and replace `your-key-here` with your key. The `.env` file is ignored by git, so your key is never committed.
 
-## Known limitations
+## 4. Steps to run
 
-- `agent_log.txt` is overwritten each new session (not appended across runs) — fine for debugging a single session, not for long-term history
-- No automated tests yet
-- A companion price-alert tool for TWD/IDR was prototyped but not kept — the daily-granularity data source wasn't a good fit for a threshold alert use case
-- Currently local-only; not yet packaged as an installable CLI
-
-## Roadmap ideas
-
-- Persist logs per session (timestamped files) instead of overwriting
-- Add basic unit tests for the EUR-pivot triangulation logic
-- Package as a proper CLI (`pipx install`) instead of running the script directly
-# portfolio
-Portfolio for documenting my project. This is a lifetime project.
+1. Activate the environment (if it isn't active already):
+   - Windows: `.venv\Scripts\activate`
+   - macOS / Linux: `source .venv/bin/activate`
+2. Start the chat:
+   ```
+   python currency_agent.py
+   ```
+3. Ask a question, for example:
+   - `market summary today`
+   - `what is the USD to TWD rate?`
+   - `average SGD to IDR in Q1 2026`
+   - `bitcoin price in rupiah`
+4. Useful commands:
+   - `reset`: forget the conversation and start fresh
+   - `exit` or **ESC**: quit (on macOS/Linux use `Ctrl+C`)
+5. To see exactly which tools the agent called and what they returned, open `agent_log.txt` (it is recreated each time you start the program).
