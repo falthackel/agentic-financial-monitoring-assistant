@@ -136,6 +136,7 @@ Three separate scores per case:
 | Prompt | Tool choice pass | Numbers grounded | Main failure |
 |---|---|---|---|
 | v1 | 12/13 | 13/13 | `causal_why`: causes stated as facts, not attributed to the search |
+| v2 | 13/13 | 13/13 | none failed; `causal_why` names sources only loosely ("market reports") |
 
 Full table: [eval/results.md](../eval/results.md). Raw runs (every tool call and answer): [eval/runs/](../eval/runs/).
 
@@ -151,7 +152,11 @@ The model ignores temperature, so a case can pass on one run and fail on the nex
 
 ## Prompt iteration log
 
-*To be added: each prompt change, the failure that caused it, and the measured result.*
+[docs/prompt_iterations.md](prompt_iterations.md) records each prompt change: the failure that caused it (with evidence from the eval), the exact change, and the result after re-running the eval.
+
+In short: v1 stated causes for a currency move as facts, including one that wasn't in any search result. v2 adds a rule to only give reasons found in the search and to say so when the search doesn't explain the move. On the same question v2 found no supporting news, said so, and corrected the question's false premise. Tool choice went from 12/13 to 13/13.
+
+Choose a prompt for the chat with `PROMPT_VERSION` (default `v1`), e.g. PowerShell: `$env:PROMPT_VERSION="v2"; python currency_agent.py`.
 
 ## Known limitations
 

@@ -39,7 +39,7 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T28 | M3 | First live smoke test after the changes (1 question) | 2026-11-11 | 2026-11-11 | done | technical log, Nov 11 |
 | T29 | Cleanup | Remove `temperature` (ignored by the model) | 2026-11-11 | 2026-11-11 | done | `0acef1f` |
 | T21 | M4 | Evaluation set (13 cases) + `run_eval.py`, run v1: 12/13 | 2026-11-11 | 2026-11-11 | done | `d0443ec`, `eval/results.md` |
-| T22 | M5 | Prompt v2 from eval failures, re-run, write iteration log | 2026-11-12 | 2026-11-13 | planned | |
+| T22 | M5 | Prompt v2 from eval failures, re-run (13/13), write iteration log | 2026-11-11 | 2026-11-11 | done | `848a77c`, `5caf17d`, `docs/prompt_iterations.md` |
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-14 | 2026-11-14 | planned | |
 | T24 | M6 | `demo_script.md`, clean run, backup recording | 2026-11-15 | 2026-11-15 | planned | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
@@ -75,7 +75,7 @@ gantt
     Live smoke test (T28)                    :done, t28, 2026-11-11, 1d
     Remove temperature (T29)                 :done, t29, 2026-11-11, 1d
     M4 evaluation, v1 (T21)                  :done, t21, 2026-11-11, 1d
-    M5 prompt v2 (T22)                       :t22, 2026-11-12, 2d
+    M5 prompt v2 (T22)                       :done, t22, 2026-11-11, 1d
 
     section Release
     README final + GitHub push (T23)         :t23, 2026-11-14, 1d
@@ -175,3 +175,16 @@ gantt
   - `compare_q1_q2` was first flagged for numbers 21.19 and 3.97. A manual check showed they are correct: Q2 − Q1 and the % change. Changed the checker to mark such numbers "computed" instead of "ungrounded", but only for structured tools (search text has too many numbers). After rescoring: 13/13 grounded.
   - `relative_date` passed but made one extra, unneeded `get_exchange_rate` call first.
   - Fixed the report to show arguments in the tool's parameter order.
+
+**M5: prompt v2**
+- `848a77c` `SYSTEM_PROMPT_V2` = v1 + two rules, one per observed failure:
+  - Rule A (`causal_why`): only give reasons found in the search results, name the source, say so if the search doesn't explain the move.
+  - Rule B (`relative_date`): for one past date, use `get_average_exchange_rate` with start = end.
+  - Not added, since the eval showed no failure for them: "never state an ungrounded number", "say data is unavailable", "answer in the user's language".
+- **v2 run** (about 35 Gemini requests, 0 quota errors; about 70 for the day): **13/13 tool choice.**
+  - `causal_why`: the searches returned The Walking Dead ("TWD") and CNN's front page. v2 still didn't invent a cause: it said the results show the TWD *weakened*, and every claim was found word for word in the search results (hand check). It named sources only loosely ("market reports").
+  - `relative_date`: one call instead of two. Read "last Monday" as Nov 2 (v1: Nov 9). Both accepted, and the date was stated.
+- `5caf17d` Checker fixes after hand checks, applied to both versions: large round numbers count as rounded (only with 3+ significant digits), "ISO 4217" is not a value. 51 tests.
+- Wrote `docs/prompt_iterations.md`: K3, v1 failures with evidence, v2 change, result, checker fixes, limits (one run per case, the word check can be gamed), and v3 ideas.
+- **Gemini quota:** no 429 in either run. The free daily quota resets at midnight US Pacific = 08:00 UTC = **16:00 Taiwan time** (Google docs). Limits are per Google Cloud project, not per key.
+- Commit messages: PowerShell 5.1 strips double quotes from `git commit -m`, so messages with quotes now go through `git commit -F <file>`.

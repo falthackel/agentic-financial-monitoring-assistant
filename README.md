@@ -28,6 +28,7 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ├── eval/               # Evaluation: test questions, runner, results.md
 ├── docs/README.md      # Detailed project documentation
 ├── docs/dev_log.md     # Development log: task timeline + technical notes
+├── docs/prompt_iterations.md  # Prompt changes: failure → fix → measured result
 ├── flowchart.svg       # Architecture diagram (image)
 ├── requirements.txt    # Pinned Python packages
 ├── requirements-dev.txt # requirements.txt + pytest
