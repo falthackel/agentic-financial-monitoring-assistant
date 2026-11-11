@@ -26,9 +26,9 @@ Model: `gemini-3.5-flash-lite`. One run per case per version. The model ignores 
 
 It was hard-coded, not taken from the agent. In a Sep 16 session the agent went straight to web search for a "why" question after a *successful* rate lookup, so the log claimed a reason that wasn't true.
 
-**Evidence.** Baseline commit `80ba21a`, `currency_agent.py` lines 371–372. (The Sep 16 log file itself was overwritten by a test script on Nov 11, see the dev log.)
+**Evidence.** Baseline commit `8a68834`, `currency_agent.py` lines 371–372. (The Sep 16 log file itself was overwritten by a test script on Nov 11, see the dev log.)
 
-**Fix.** Code, not prompt: the line was deleted (`00d0225`). The terminal and the log now show only the agent's real actions: which tool, which arguments, which result (M2).
+**Fix.** Code, not prompt: the line was deleted (`7628b4e`). The terminal and the log now show only the agent's real actions: which tool, which arguments, which result (M2).
 
 **Why it matters.** It is the same problem as Failure 1 below, a reason that sounds right but isn't grounded. The log and the agent's answers should both only claim what actually happened.
 
