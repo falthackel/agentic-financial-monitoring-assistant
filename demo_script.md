@@ -119,6 +119,19 @@ Then press **ESC** to quit.
 
 ---
 
+## Bonus: the web page (optional, 1 minute)
+
+Only if time allows, after the closing. The terminal demo above is the main one.
+
+1. In a second terminal: `streamlit run app.py`. The browser opens at `http://127.0.0.1:8501`
+2. Click **"Compare today's IHSG with its Q1 2026 average."** in the sidebar
+3. **Point at:** the box above the answer filling with 🔧 / ✅ lines live, then folding into "🔧 2 tool calls"
+4. **Say:** *"Same agent, same tools, same prompt. The page only changes how the steps are shown. The agent code doesn't know whether it's talking to a terminal or a browser."*
+
+Start it **before** the demo (it takes a few seconds), and don't ask the same questions twice, to save quota.
+
+---
+
 ## Backup recording (2–3 minutes)
 
 Record the same flow, shorter:

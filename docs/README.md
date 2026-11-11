@@ -79,13 +79,16 @@ You: compare USD and XYZ to IDR
 | File | Role |
 |---|---|
 | `currency_agent.py` | Entry point. Fixes Windows console encoding, then starts the chat |
-| `cli.py` | Terminal loop: reads input, handles `reset` / `exit` / ESC, prints answers |
+| `cli.py` | Terminal loop: reads input, handles `reset` / `exit` / ESC, prints answers. Also `format_step()`, the step text shared with the web page |
+| `app.py` | Streamlit web page: chat, live step box, example buttons, reset. One conversation per browser tab |
 | `agent.py` | Creates the Gemini model and the LangChain agent, keeps the conversation history, runs one turn (`run_request`) |
 | `tools.py` | The 4 tools and their data helpers |
 | `prompts.py` | System prompt versions, kept side by side for comparison |
 | `trace_log.py` | Writes `agent_log.txt` |
 
-`agent.py` does not print anything itself, so the terminal, the evaluation script and a future UI can all reuse it.
+`agent.py` does not print anything itself, so the terminal, the evaluation script and the web page all reuse it. `run_turn(history, question, on_step)` takes the conversation as an input and returns the new one, so each browser tab keeps its own. The terminal and the eval use `run_request()`, which wraps it with one shared conversation.
+
+The web page only listens on `127.0.0.1` (see `.streamlit/config.toml`). Otherwise anyone on the same network could use it, and with it your API key and quota.
 
 ### How the tools work
 

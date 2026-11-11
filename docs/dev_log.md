@@ -47,7 +47,7 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T32 | Rehearsal | Partial rehearsal by Farrel; found F1: no IHSG history | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T33 | Fix | F1: IHSG history (average / compare periods), v2 re-run 15/15 | 2026-11-11 | 2026-11-11 | done | `78aeebb`, `eval/results.md` |
 | T34 | Fix | F2: web_search gives no source names, so the agent invented one | 2026-11-12 | 2026-11-12 | done | `d74f257`, repeated runs 6/6 |
-| T35 | UI | Streamlit UI (nice-to-have #7) | 2026-11-12 | 2026-11-13 | in progress | |
+| T35 | UI | Streamlit UI (nice-to-have #7) | 2026-11-12 | 2026-11-12 | done | `f816011` + UI commit; live test pending |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
@@ -89,7 +89,7 @@ gantt
     Partial rehearsal, finding F1 (T32)      :done, t32, 2026-11-11, 1d
     Fix F1: IHSG history (T33)               :done, t33, 2026-11-11, 1d
     Fix F2: source names in search (T34)     :done, t34, 2026-11-12, 1d
-    Streamlit UI (T35)                       :active, t35, 2026-11-12, 2d
+    Streamlit UI (T35)                       :done, t35, 2026-11-12, 1d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
@@ -257,3 +257,17 @@ gantt
   - **Hand check: no invented source in 6 of 6 runs.**
 - **Open (v3 idea):** source *quality*. The agent treats a forum like a newspaper.
 - Small fix in `run_eval.py`: the "prompt changed since the saved run" warning fired because the prompt starts with today's date. It now ignores the date.
+
+### 2026-11-12 · Streamlit UI (nice-to-have #7)
+- Installed `streamlit==1.65.0` (Farrel's OK). No other package changed (`pip check` clean). Pinned in `requirements.txt`.
+- `f816011` refactor, no behavior change:
+  - `agent.run_turn(history, question, on_step)` returns `(answer, new_history)`. `run_request()` (CLI, eval) wraps it with the shared history. This lets each browser tab keep its own conversation.
+  - `cli.format_step(step)` gives the 🔧/✅/❌ text, shared by the terminal and the page, so the formatting isn't copied.
+- `app.py`: chat, a live status box that fills with each step and then folds to "🔧 N tool calls", example question buttons, a reset button, and the same error messages as the CLI. A missing key shows a clear message instead of a stack trace. **No agent logic in the page**: it only calls `agent.run_turn`.
+- Display details found while building:
+  - `$` in answers is escaped, because Streamlit reads text between two `$` as a math formula ("$4,072/oz … $2,370" would be garbled).
+  - `<br>` in tables (Gemini writes it, see the sample session) is replaced with a space.
+  - `use_container_width` is deprecated in Streamlit 1.65, so `width="stretch"` is used (avoids a warning on screen).
+- **Security:** the first server start showed a *Network URL* (`140.112.x.x`), so anyone on the university network could have used the page, and with it the API key and quota. `.streamlit/config.toml` now binds to `127.0.0.1` only (not `localhost`: PowerShell resolved that to IPv6 first and failed). Checked: reachable on 127.0.0.1, not reachable on the network address. Usage statistics are off.
+- **Checks:** 5 offline page tests with Streamlit's `AppTest` and the fake model (page loads, live steps + answer with `$` escaped, example button, quota error keeps history, reset). 72 tests in total. Real server started and stopped (health `ok`, HTTP 200) without asking a question, so no Gemini call.
+- **Not yet done:** a live question through the page (needs Gemini quota, Farrel's OK). Added an optional "bonus" section to `demo_script.md`.

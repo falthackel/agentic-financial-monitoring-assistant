@@ -19,6 +19,7 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ```
 .
 ├── currency_agent.py   # Start here: runs the terminal chat
+├── app.py              # The same agent as a web page (Streamlit)
 ├── cli.py              # Terminal input/output (ESC or 'exit' to quit, 'reset' to clear)
 ├── agent.py            # Gemini model + LangChain agent + conversation memory
 ├── tools.py            # The 4 tools the agent can call (see below)
@@ -33,6 +34,7 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ├── flowchart.svg       # Architecture diagram (image)
 ├── requirements.txt    # Pinned Python packages
 ├── requirements-dev.txt # requirements.txt + pytest
+├── .streamlit/         # Web page settings (only this computer can open it)
 └── .env.example        # Template for your API key
 ```
 
@@ -91,7 +93,12 @@ Then open `.env` and replace `your-key-here` with your key. The `.env` file is i
    - `reset`: forget the conversation and start fresh
    - `exit` or **ESC**: quit (on macOS/Linux use `Ctrl+C`)
 5. While the agent works, the terminal shows each tool it calls (`🔧`) and whether the result came back OK (`✅`) or failed (`❌`). The full trace is also saved to `agent_log.txt` (recreated each time you start the program).
-6. Optional: run the offline tests (they don't use Gemini or the internet):
+6. Or use the **web page** instead of the terminal:
+   ```
+   streamlit run app.py
+   ```
+   It opens in your browser at `http://127.0.0.1:8501`. Each tool step appears live in a box above the answer, and the sidebar has example questions and a reset button. If Streamlit asks for an email the first time, just press Enter. Stop it with `Ctrl+C` in the terminal.
+7. Optional: run the offline tests (they don't use Gemini or the internet):
    ```
    pip install -r requirements-dev.txt
    pytest

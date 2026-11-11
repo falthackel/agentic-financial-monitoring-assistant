@@ -1,0 +1,9 @@
+[server]
+# only this computer can open the page. Without this, anyone on the same
+# network could use the app, and with it your Gemini API key and quota.
+# (127.0.0.1 instead of "localhost": Windows may look up "localhost" as IPv6 first)
+address = "127.0.0.1"
+
+[browser]
+# don't send usage statistics to Streamlit
+gatherUsageStats = false
