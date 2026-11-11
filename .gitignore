@@ -11,3 +11,6 @@ __pycache__/
 agent_log.txt
 twd_idr_history.csv
 eval/runs/*.log
+
+# Personal notes (local only)
+docs/learning_notes.md
