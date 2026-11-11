@@ -17,6 +17,14 @@ except ImportError:
 
 MAX_SUMMARY_CHARS = 100
 
+# what the user sees for each AgentRunError kind
+ERROR_MESSAGES = {
+    "quota": "Gemini quota or rate limit reached (429). Wait a minute, then try again.",
+    "timeout": "Gemini took too long to answer. Please try again.",
+    "auth": "Gemini rejected the API key. Check GOOGLE_API_KEY in your .env file.",
+    "other": "Something went wrong while answering.",
+}
+
 
 # ---------------------------------------------------------
 # Live tool-call display
@@ -41,14 +49,37 @@ def print_step(step: dict):
         print(f"  {mark} {step['tool']} → {_summarize(step['content'])}", flush=True)
 
 
-def ask(question: str) -> str:
+def _answer(question: str):
+    """
+    Run one turn and print the answer. Any failure is shown as a short
+    message, so the chat loop never crashes. Returns None on failure.
+    """
+    try:
+        answer = agent.run_request(question, on_step=print_step)
+    except agent.AgentRunError as e:
+        print(f"\n⚠️  {ERROR_MESSAGES.get(e.kind, ERROR_MESSAGES['other'])}")
+        if e.kind == "other":
+            print(f"   Reason: {_summarize(str(e))}")
+        print("   (This question was not saved to the conversation. Details are in the log.)")
+        return None
+    except KeyboardInterrupt:
+        print("\n[Cancelled] This question was not saved to the conversation.")
+        return None
+    except Exception as e:
+        # last safety net: should not happen, but never crash the chat
+        trace_log.log(f"[CLI ERROR] {type(e).__name__}: {e}")
+        print(f"\n⚠️  Unexpected error: {_summarize(str(e))}")
+        return None
+    print(f"\nAgent:\n{answer}")
+    return answer
+
+
+def ask(question: str):
     """Send one question (for manual testing outside chat mode)."""
     if not agent.has_history():
         trace_log.start_session()
-    print(f"\n>> You: {question}")
-    answer = agent.run_request(question, on_step=print_step)
-    print(f"\n>> Agent:\n{answer}")
-    return answer
+    print(f"\nYou: {question}")
+    return _answer(question)
 
 
 # ---------------------------------------------------------
@@ -117,5 +148,4 @@ def chat():
             print("[Conversation reset: earlier context is forgotten]")
             continue
 
-        answer = agent.run_request(question, on_step=print_step)
-        print(f"\nAgent:\n{answer}")
+        _answer(question)

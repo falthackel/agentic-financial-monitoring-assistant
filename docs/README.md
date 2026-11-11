@@ -92,7 +92,21 @@ You: compare USD and XYZ to IDR
 - **EUR pivot.** Frankfurter publishes rates against EUR. To get USD to TWD, the code fetches EUR to USD and EUR to TWD, then divides them.
 - **Gold.** Frankfurter gives gold in ounces. The table shows USD per troy ounce (the usual reference) plus Rp per gram and Rp per 0.01 gram (1 troy oz = 31.1035 g).
 - **"Last update" time.** For daily data the table shows the rate date plus the time we checked, because there is no real market time. For IHSG it shows the real market time of the last 1-minute price.
-- **Errors.** Every tool catches its own errors and returns text that starts with `ERROR:`. The agent can then try another tool instead of crashing. In the price table, one failed asset shows `FAILED` in its row and the rest of the table still works.
+- **Tool errors.** Every tool catches its own errors and returns text that starts with `ERROR:`. The agent can then try another tool instead of crashing. In the price table, one failed asset shows `FAILED` in its row and the rest of the table still works.
+
+### Error handling
+
+| Problem | What happens |
+|---|---|
+| `GOOGLE_API_KEY` missing or still the placeholder | The program stops at startup with a one-line message |
+| Gemini quota / rate limit (429) | "Quota reached, wait a minute" message, chat keeps running |
+| Gemini timeout (30 s per request, max 2 retries) | "Took too long, try again" message, chat keeps running |
+| Invalid API key | "Check GOOGLE_API_KEY" message |
+| Any other failure, or no final answer | Short reason shown, chat keeps running |
+| Answer with no text | A fallback message instead of an empty line |
+| Ctrl+C while the agent works | Cancels only that question |
+
+In every failure case, the question is **not** saved to the conversation, so the next question starts clean. The full reason is written to `agent_log.txt` as `[AGENT ERROR] <kind>: <reason>`.
 
 ## Tech stack
 
@@ -123,5 +137,4 @@ Python 3.10. All package versions are pinned in `requirements.txt`.
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
-- A Gemini error (for example the free-tier rate limit) currently stops the program.
-- No automated tests yet.
+- The free Gemini tier has per-minute and per-day limits. When they are hit, the agent shows a "quota reached" message and you have to wait.

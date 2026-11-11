@@ -27,6 +27,7 @@ from trace_log import log
 
 API_BASE = "https://api.frankfurter.dev/v2"
 GRAMS_PER_TROY_OZ = 31.1034768
+YF_TIMEOUT = 10  # seconds for each yfinance request
 
 # Every tool failure starts with this text. Code checks this prefix,
 # never the wording of the message.
@@ -167,13 +168,13 @@ def _get_ihsg_data():
     + % change vs the previous day's close.
     """
     ticker = yf.Ticker("^JKSE")
-    daily = ticker.history(period="5d")
+    daily = ticker.history(period="5d", timeout=YF_TIMEOUT)
     if daily.empty:
         raise ValueError("no data for IHSG")
 
     prev_close = float(daily.iloc[-2]["Close"]) if len(daily) >= 2 else None
 
-    intraday = ticker.history(period="1d", interval="1m")
+    intraday = ticker.history(period="1d", interval="1m", timeout=YF_TIMEOUT)
     if not intraday.empty:
         price = float(intraday.iloc[-1]["Close"])
         last_update = intraday.index[-1].strftime("%Y-%m-%d %H:%M")
