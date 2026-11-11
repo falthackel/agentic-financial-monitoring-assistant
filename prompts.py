@@ -44,4 +44,4 @@ PROMPTS = {
     "v1": SYSTEM_PROMPT_V1,
     "v2": SYSTEM_PROMPT_V2,
 }
-DEFAULT_PROMPT_VERSION = "v1"
+DEFAULT_PROMPT_VERSION = "v2"  # best eval result (13/13), see docs/prompt_iterations.md

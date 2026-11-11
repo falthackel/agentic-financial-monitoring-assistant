@@ -156,7 +156,7 @@ The model ignores temperature, so a case can pass on one run and fail on the nex
 
 In short: v1 stated causes for a currency move as facts, including one that wasn't in any search result. v2 adds a rule to only give reasons found in the search and to say so when the search doesn't explain the move. On the same question v2 found no supporting news, said so, and corrected the question's false premise. Tool choice went from 12/13 to 13/13.
 
-Choose a prompt for the chat with `PROMPT_VERSION` (default `v1`), e.g. PowerShell: `$env:PROMPT_VERSION="v2"; python currency_agent.py`.
+The chat uses v2 by default. To try another version, set `PROMPT_VERSION`, e.g. PowerShell: `$env:PROMPT_VERSION="v1"; python currency_agent.py`.
 
 ## Known limitations
 

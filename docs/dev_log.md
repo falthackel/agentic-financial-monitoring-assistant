@@ -40,6 +40,7 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T29 | Cleanup | Remove `temperature` (ignored by the model) | 2026-11-11 | 2026-11-11 | done | `0acef1f` |
 | T21 | M4 | Evaluation set (13 cases) + `run_eval.py`, run v1: 12/13 | 2026-11-11 | 2026-11-11 | done | `d0443ec`, `eval/results.md` |
 | T22 | M5 | Prompt v2 from eval failures, re-run (13/13), write iteration log | 2026-11-11 | 2026-11-11 | done | `848a77c`, `5caf17d`, `docs/prompt_iterations.md` |
+| T30 | M5 | Make prompt v2 the default for the chat | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-14 | 2026-11-14 | planned | |
 | T24 | M6 | `demo_script.md`, clean run, backup recording | 2026-11-15 | 2026-11-15 | planned | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
@@ -188,3 +189,4 @@ gantt
 - Wrote `docs/prompt_iterations.md`: K3, v1 failures with evidence, v2 change, result, checker fixes, limits (one run per case, the word check can be gamed), and v3 ideas.
 - **Gemini quota:** no 429 in either run. The free daily quota resets at midnight US Pacific = 08:00 UTC = **16:00 Taiwan time** (Google docs). Limits are per Google Cloud project, not per key.
 - Commit messages: PowerShell 5.1 strips double quotes from `git commit -m`, so messages with quotes now go through `git commit -F <file>`.
+- Made v2 the default prompt for the chat (`DEFAULT_PROMPT_VERSION = "v2"`), Farrel's decision. v1 is still available with `PROMPT_VERSION=v1`.
