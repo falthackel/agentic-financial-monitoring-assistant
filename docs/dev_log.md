@@ -44,6 +44,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-11 | 2026-11-11 | done | `e5de560`, GitHub `main` |
 | T31 | M6 | Write `demo_script.md` | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T24 | M6 | Clean run + backup recording (Farrel) | 2026-11-15 | 2026-11-15 | planned | |
+| T32 | Rehearsal | Partial rehearsal by Farrel; found F1: no IHSG history | 2026-11-11 | 2026-11-11 | done | see technical log |
+| T33 | Fix | F1: IHSG history (average / compare periods) | 2026-11-12 | 2026-11-12 | planned | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
@@ -82,6 +84,8 @@ gantt
     section Release
     README final + GitHub push (T23)         :done, t23, 2026-11-11, 1d
     Demo script written (T31)                :done, t31, 2026-11-11, 1d
+    Partial rehearsal, finding F1 (T32)      :done, t32, 2026-11-11, 1d
+    Fix F1: IHSG history (T33)               :t33, 2026-11-12, 1d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
@@ -204,3 +208,14 @@ gantt
 - Wrote `demo_script.md`: a checklist for before the demo (quota reset time, terminal, test question), 6 questions in one conversation (table → follow-up → gold per gram → unknown code with fallback → "why" with source → off-topic), what to point at and say for each, a closing tour of the eval and the prompt log, a 2–3 minute recording plan, and what to do if something fails live.
 - Order chosen so each question shows one new thing, the follow-up comes right after the question it depends on, and the error case comes before the prompt-fix story.
 - Not yet rehearsed live: the full script uses about 15–20 Gemini requests.
+
+### 2026-11-11 · Rehearsal finding F1: no IHSG history
+- **Found by:** Farrel, during a partial rehearsal (pushed `f82df48` first).
+- **Symptom:** the agent can give today's IHSG, but not IHSG history: no average over a period, and no comparison of today with the past.
+- **Cause (checked without Gemini):**
+  - The only history tool, `get_average_exchange_rate`, gets its data from Frankfurter, which only has currencies. With IHSG it returns `ERROR: ... 422 Unprocessable Entity`.
+  - IHSG comes from yfinance (`^JKSE`), and `_get_ihsg_data()` only fetches the last 5 days, for today's price and % change.
+  - yfinance **does** have the history: for Q1 2026 it returned 55 trading days (2026-01-02 to 2026-03-31, average close 8,184.86). So the data source exists, but no tool asks it for a date range.
+- **Effect:** the agent can only fall back to `web_search`, which can't reliably compute an average over a date range.
+- **Why the eval missed it:** none of the 13 cases asks for IHSG history. A case will be added with the fix, so this stays covered.
+- **Status:** recorded, fix planned (T33). Fix options are listed in the next entry once chosen.

@@ -205,6 +205,7 @@ The chat uses v2 by default. To try another version, set `PROMPT_VERSION`, e.g. 
 ## Known limitations
 
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
+- IHSG history is not supported yet: the agent can give today's IHSG, but not an average or a comparison over past dates (`get_average_exchange_rate` only covers currencies). Planned fix.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
 - The log stores a short summary of each web search ("found 4 results"), not the result text. To check a claim later, you have to repeat the search (the eval's `eval/runs/*.json` does keep full results).
