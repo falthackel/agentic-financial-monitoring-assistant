@@ -18,6 +18,7 @@ Usage (from the repo root):
 import argparse
 import datetime
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -105,6 +106,11 @@ def checks_preview(text: str, limit: int = 120) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
 
 
+def _without_date(prompt: str) -> str:
+    """The prompt starts with 'Today is YYYY-MM-DD.'; a new day is not a prompt change."""
+    return re.sub(r"Today is \d{4}-\d{2}-\d{2}\.", "Today is <date>.", prompt)
+
+
 def run_cases(version: str, only: list, rerun_all: bool, delay: float, repeat: int = 1):
     import agent  # imported here so --report-only works without an API key
     import cli
@@ -121,7 +127,7 @@ def run_cases(version: str, only: list, rerun_all: bool, delay: float, repeat: i
     agent.agent = agent.build_agent(version)
 
     run = load_run(version)
-    if run.get("prompt_text") and run["prompt_text"] != PROMPTS[version]:
+    if run.get("prompt_text") and _without_date(run["prompt_text"]) != _without_date(PROMPTS[version]):
         print(f"⚠️  The {version} prompt changed since the saved run. "
               "Use --rerun-all so all cases use the same prompt.")
     run.update({"model": agent.MODEL_NAME, "prompt_text": PROMPTS[version]})

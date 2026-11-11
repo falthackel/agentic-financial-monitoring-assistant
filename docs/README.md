@@ -180,7 +180,7 @@ Three separate scores per case:
 | Prompt | Tool choice pass | Numbers grounded | Main failure |
 |---|---|---|---|
 | v1 | 12/13 | 13/13 | `causal_why`: causes stated as facts, not attributed to the search |
-| v2 | 15/15 | 15/15 | none failed. Hand check: `causal_why` once named a source ("Focus Taiwan") that is not in the search results |
+| v2 | 15/15 | 15/15 | none. Once named a source not in the search results ("Focus Taiwan"); fixed by showing each result's site. `causal_why` and `crypto` then passed 3/3 each |
 
 The two IHSG cases were added after a rehearsal found that IHSG history wasn't supported. v2 was re-run on all 15 cases after that fix. v1 has no run for the 2 new cases.
 
@@ -207,7 +207,7 @@ The chat uses v2 by default. To try another version, set `PROMPT_VERSION`, e.g. 
 ## Known limitations
 
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
-- Web search results reach the model without the website name, so when asked "why", the agent can't always name a real source, and once named one that wasn't in the results. Planned fix: include each result's site.
+- The agent names the site a claim comes from, but doesn't judge how reliable it is: a forum can be cited like a newspaper.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
 - The log stores a short summary of each web search ("found 4 results"), not the result text. To check a claim later, you have to repeat the search (the eval's `eval/runs/*.json` does keep full results).

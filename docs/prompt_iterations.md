@@ -13,6 +13,8 @@ Each prompt change is listed with the failure that caused it, the evidence, the 
 | v1 | 2026-11-11 | Original prompt, translated to English | 12/13 | 13/13 |
 | v2 | 2026-11-11 | + Rule A (cite search for "why" questions), + Rule B (past-date tool) | **13/13** | 13/13 |
 | v2 (re-run) | 2026-11-11 | No prompt change. Tool fix: IHSG history; 2 new cases | **15/15** | 15/15 |
+| v2 + source check | 2026-11-12 | New eval check for named sources (re-score, no new run) | 14/15 | 15/15 |
+| v2 (re-run) | 2026-11-12 | No prompt change. Tool fix: site names in search results. `causal_why`, `crypto` ×3 | **15/15** (3/3, 3/3) | 15/15 |
 
 Model: `gemini-3.5-flash-lite`. One run per case per version. The model ignores temperature, so results vary between runs (see [Limits](#limits-of-this-evidence)).
 
@@ -141,7 +143,11 @@ All three were checked by hand first, and each has a unit test (`tests/test_eval
 
 Both causes are in the search results. "Focus Taiwan" is **not**. The real cause is in the tool, not the prompt: `web_search` gives the model each result's title and text, but not the website. Rule A asks the model to name sources it was never given, so it either stays vague ("market reports", first v2 run) or guesses (this run).
 
-**Lesson:** a prompt rule can only be followed if the tools supply what the rule needs. Planned fix: include each result's site in the `web_search` output, and add an eval check that every source named in an answer appears in the search results.
+**Lesson:** a prompt rule can only be followed if the tools supply what the rule needs.
+
+**Fix (tool, not prompt).** `web_search` now starts each result with its site (`[bloomberg.com] …`). A new eval check, `check_sources`, requires every source an answer names to appear in the search results. Re-scoring the saved run with that check (no new Gemini calls) flagged "Focus Taiwan" and dropped v2 to 14/15, so the eval itself now catches this failure.
+
+**Result.** `causal_why` and `crypto` were each run 3 times (`--repeat 3`): **3/3 and 3/3**, and the hand check found no invented source in any of the 6 runs. Every `causal_why` answer cited *The Edge Malaysia*, whose site was in the results. Remaining weakness: source *quality*. One answer also cited a forum (`thehelper.net`) as if it were news.
 
 ---
 
@@ -154,6 +160,8 @@ Both causes are in the search results. "Focus Taiwan" is **not**. The real cause
 | "Answer in the user's language." | v1 answered the Indonesian question in Indonesian |
 
 ## Ideas for v3 (not done)
+
+- **Source quality:** prefer news and official sites over forums, and say when a claim comes from a weak source.
 
 - **Search queries:** "write currency names in full in search queries (e.g. 'Taiwan dollar', not 'TWD')". This would fix the Walking Dead results.
 - **Named sources:** require the site name for each reason, and check that the name appears in the search results.

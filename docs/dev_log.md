@@ -46,7 +46,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T24 | M6 | Clean run + backup recording (Farrel) | 2026-11-15 | 2026-11-15 | planned | |
 | T32 | Rehearsal | Partial rehearsal by Farrel; found F1: no IHSG history | 2026-11-11 | 2026-11-11 | done | see technical log |
 | T33 | Fix | F1: IHSG history (average / compare periods), v2 re-run 15/15 | 2026-11-11 | 2026-11-11 | done | `78aeebb`, `eval/results.md` |
-| T34 | Fix | F2: web_search gives no source names, so the agent invented one | 2026-11-12 | 2026-11-12 | planned | |
+| T34 | Fix | F2: web_search gives no source names, so the agent invented one | 2026-11-12 | 2026-11-12 | done | `d74f257`, repeated runs 6/6 |
+| T35 | UI | Streamlit UI (nice-to-have #7) | 2026-11-12 | 2026-11-13 | in progress | |
 | T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
@@ -87,7 +88,8 @@ gantt
     Demo script written (T31)                :done, t31, 2026-11-11, 1d
     Partial rehearsal, finding F1 (T32)      :done, t32, 2026-11-11, 1d
     Fix F1: IHSG history (T33)               :done, t33, 2026-11-11, 1d
-    Fix F2: source names in search (T34)     :t34, 2026-11-12, 1d
+    Fix F2: source names in search (T34)     :done, t34, 2026-11-12, 1d
+    Streamlit UI (T35)                       :active, t35, 2026-11-12, 2d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
@@ -241,3 +243,17 @@ gantt
 - **Cause:** `web_search` returns each result as `- title: text` and drops the site/URL that DuckDuckGo provides. Prompt v2 Rule A asks the model to "say which source each reason comes from", but the tool never tells it the source. The first v2 run fell back on "market reports". This run guessed a plausible name. The sample session's "Bloomberg" was correct only because it was in a title.
 - **Why the eval missed it:** the checks look for the word "according" and for grounded *numbers*, not for grounded *source names*.
 - **Planned fix (T34):** add each result's site to the `web_search` output (e.g. `[bloomberg.com]`) and an eval check that every source named in an answer appears in the search results.
+
+### 2026-11-12 · Fix F2: source names in search results
+- `d74f257`, a tool fix (the prompt is unchanged; Rule A was fine, it just couldn't be followed):
+  - `web_search` lines now start with the site from the result URL: `- [bloomberg.com] title: text`. The log line lists the sites too, so the log now shows where answers came from.
+  - New eval check `check_sources` (turned on for `causal_why` and `crypto`): a capitalized name after "according to", "such as (from)", "reported by", or "citing" must appear in the search results (text or site). Vague phrases ("according to recent reports") are skipped.
+  - Re-scoring the saved runs (no Gemini) flagged the old "Focus Taiwan" answer: v2 went from 15/15 to **14/15**. The eval now catches what only the hand check caught before.
+  - New `--repeat N` in `run_eval.py`, which runs a case N times and reports k/N.
+  - 7 new tests (65 total).
+- **Verification** (about 20 Gemini requests, 0 errors): `causal_why` and `crypto` on v2, 3 runs each → **3/3 and 3/3**. v2 back to 15/15.
+  - `causal_why`: all 3 runs named *The Edge Malaysia*, and `theedgemalaysia.com` was in every result. Run 3 also cited *The Helper* (`thehelper.net`), which is real and matches the text, but is a forum, not a news site.
+  - `crypto`: run 3 labelled a price "Indodax" with `[binance.com]`. Hand check: DuckDuckGo returned one binance.com result whose title merges several sites, including Indodax, and the price is in that text. A data quirk, not an invention.
+  - **Hand check: no invented source in 6 of 6 runs.**
+- **Open (v3 idea):** source *quality*. The agent treats a forum like a newspaper.
+- Small fix in `run_eval.py`: the "prompt changed since the saved run" warning fired because the prompt starts with today's date. It now ignores the date.
