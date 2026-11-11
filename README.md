@@ -25,6 +25,7 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ├── prompts.py          # System prompt versions
 ├── trace_log.py        # Writes each tool call and result to agent_log.txt
 ├── docs/README.md      # Detailed project documentation
+├── docs/dev_log.md     # Development log: task timeline + technical notes
 ├── flowchart.svg       # Architecture diagram (image)
 ├── requirements.txt    # Pinned Python packages
 └── .env.example        # Template for your API key

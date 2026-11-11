@@ -1,0 +1,130 @@
+# Development Log
+
+How this project was built, step by step. Updated after every step.
+
+- **Task table**: one row per task, ready to copy into a spreadsheet or Gantt tool.
+- **Gantt chart**: the same tasks as a picture (GitHub draws it).
+- **Technical log**: what was done each day, why, and how it was checked.
+
+Dates marked *(inferred)* come from file timestamps, not written notes. Correct them if you remember better.
+
+---
+
+## 1. Task table
+
+Status: `done`, `in progress`, `planned`, `dropped`.
+
+| ID | Phase | Task | Start | End | Status | Evidence |
+|---|---|---|---|---|---|---|
+| T01 | Setup | Create Python 3.10 virtual env (`.venv`) | 2026-07-29 | 2026-07-29 | done | `.venv` created *(inferred)* |
+| T02 | Setup | Get Gemini API key, create `.env` | 2026-07-29 | 2026-07-29 | done | `.env` created *(inferred)* |
+| T03 | Build v0 | First working agent run (LangChain + Gemini + tools) | 2026-07-30 | 2026-07-30 | done | first `agent_log.txt` *(inferred)* |
+| T04 | Build v0 | Build 4 tools, conversation memory, file log, CLI | 2026-07-30 | 2026-09-16 | done | baseline commit `80ba21a` |
+| T05 | Build v0 | Prototype TWD/IDR price-alert script | 2026-08-12 | 2026-08-18 | dropped | `twd_idr_history.csv`, `.env` edit *(inferred)*; removed in `78baab5` |
+| T06 | Build v0 | Architecture diagram (`flowchart.svg`) | 2026-09-16 | 2026-09-16 | done | file date *(inferred)* |
+| T07 | Review | Code review, write improvement plan (local project notes, not in the repo) | 2026-11-11 | 2026-11-11 | done | local notes |
+| T08 | Safety rails | `.gitignore`, `git init`, baseline commit | 2026-11-11 | 2026-11-11 | done | `80ba21a` |
+| T09 | Safety rails | Pin dependency versions | 2026-11-11 | 2026-11-11 | done | `92c6c17` |
+| T10 | Cleanup | Delete unused alert script, choose English | 2026-11-11 | 2026-11-11 | done | `78baab5` |
+| T11 | Cleanup | `.env.example` (K2) | 2026-11-11 | 2026-11-11 | done | `c2ffaa6` |
+| T12 | Cleanup | Remove false "why" line from log (K3) | 2026-11-11 | 2026-11-11 | done | `00d0225` |
+| T13 | Safety rails | UTF-8 console fix for Windows | 2026-11-11 | 2026-11-11 | done | `4a1d413` |
+| T14 | Refactor | Translate to English + `ERROR:` prefix for tool failures | 2026-11-11 | 2026-11-11 | done | `1dd271e` |
+| T15 | Refactor | Split into `tools` / `prompts` / `agent` / `cli` / `trace_log` | 2026-11-11 | 2026-11-11 | done | `6b89e44` |
+| T16 | Docs | Simple main README + detailed `docs/README.md` | 2026-11-11 | 2026-11-11 | done | `e02b306` |
+| T17 | M2 | Show tool calls and results live in terminal | 2026-11-11 | 2026-11-11 | done | `d005dcc` |
+| T18 | Docs | Start this development log | 2026-11-11 | 2026-11-11 | done | this file |
+| T19 | M3 | Graceful error handling (Gemini 429, timeouts, missing key) | 2026-11-11 | 2026-11-12 | planned | |
+| T20 | M4b | Offline unit tests (pytest, mocked network) | 2026-11-11 | 2026-11-12 | planned | |
+| T21 | M4 | Evaluation set (10–15 cases) + `run_eval.py`, run v1 | 2026-11-12 | 2026-11-13 | planned | |
+| T22 | M5 | Prompt v2 from eval failures, re-run, write iteration log | 2026-11-12 | 2026-11-13 | planned | |
+| T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-14 | 2026-11-14 | planned | |
+| T24 | M6 | `demo_script.md`, clean run, backup recording | 2026-11-15 | 2026-11-15 | planned | |
+| T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
+| T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
+| T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
+
+## 2. Gantt chart
+
+```mermaid
+gantt
+    title Currency Agent - development timeline
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+
+    section Setup
+    Virtual env + API key (T01-T02)          :done, t01, 2026-07-29, 1d
+
+    section Build v0
+    First agent run (T03)                    :done, t03, 2026-07-30, 1d
+    Tools, memory, log, CLI (T04)            :done, t04, 2026-07-30, 2026-09-16
+    Alert script prototype, dropped (T05)    :done, t05, 2026-08-12, 2026-08-18
+    Architecture diagram (T06)               :done, t06, 2026-09-16, 1d
+
+    section Review and safety rails
+    Review + plan, git baseline, pins (T07-T13) :done, t07, 2026-11-11, 1d
+
+    section Improvements
+    English + error prefix + split (T14-T15) :done, t14, 2026-11-11, 1d
+    README + dev log (T16, T18)              :done, t16, 2026-11-11, 1d
+    M2 live tool display (T17)               :done, t17, 2026-11-11, 1d
+    M3 error handling (T19)                  :t19, 2026-11-11, 2d
+    M4b unit tests (T20)                     :t20, 2026-11-11, 2d
+    M4 evaluation, v1 (T21)                  :t21, 2026-11-12, 2d
+    M5 prompt v2 (T22)                       :t22, 2026-11-12, 2d
+
+    section Release
+    README final + GitHub push (T23)         :t23, 2026-11-14, 1d
+    Demo script + recording (T24)            :t24, 2026-11-15, 1d
+    Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
+    Rehearsal (T26)                          :t26, 2026-11-16, 1d
+    Demo day (T27)                     :milestone, t27, 2026-11-17, 0d
+```
+
+## 3. Technical log
+
+### 2026-07-29 · Setup *(inferred)*
+- Created the Python 3.10.11 virtual environment on Windows.
+- Got a Gemini API key from Google AI Studio and stored it in `.env`.
+
+### 2026-07-30 → 2026-09-16 · Build v0 *(inferred)*
+- First agent run on Jul 30 (first `agent_log.txt`).
+- Built one file, `currency_agent.py` (~550 lines), with:
+  - 4 tools: `get_exchange_rate`, `get_average_exchange_rate`, `get_price_table`, `web_search`
+  - EUR-pivot math, because Frankfurter only gives rates against EUR
+  - gold per gram / per 0.01 gram, IHSG from yfinance
+  - conversation memory within a session, `reset` command, ESC to quit
+  - a trace of every tool call in `agent_log.txt`
+- Aug 12–18: tried a separate TWD/IDR price-alert script. Not connected to the agent. Later dropped.
+- Sep 16: drew `flowchart.svg`. Last logged session before the review.
+
+### 2026-11-11 · Review, safety rails, first improvements
+**Review.** Wrote the project plan (local project notes, not in the repo): the goal (a live demo on Nov 17), working rules, known issues K1–K7, and must-haves M1–M6.
+
+**Safety rails** (so nothing breaks the working demo):
+- `80ba21a` Added `.gitignore` first (`.env`, `.venv/`, logs), then `git init`. Checked `.env` is ignored and scanned for key patterns before the first commit.
+- `92c6c17` Pinned all packages to the exact versions in `.venv` (`==` instead of `>=`).
+- `4a1d413` `sys.stdout.reconfigure(encoding="utf-8")` so emoji don't crash when output goes to a file. Checked by redirecting output to a file.
+
+**Decisions**
+- Demo language: **English** (the audience may not read Indonesian).
+- `twd_idr_alert.py`: **delete**, it was unused (`78baab5`).
+
+**Cleanup**
+- `c2ffaa6` `.env.example` with a placeholder key (K2).
+- `00d0225` Removed a hard-coded log line that always said "the structured tools could not answer" whenever web search ran. It was often false (K3). This is also the first known failure for the prompt log (M5).
+
+**Refactor**
+- `1dd271e` Translated everything user-facing to plain English. The prompt kept the same meaning and moved to `SYSTEM_PROMPT_V1`. Every tool failure now starts with `ERROR:`, so code checks one prefix instead of the wording. Failure log lines hold tool, arguments, and reason on one line.
+- `6b89e44` Split the single file into `tools.py`, `prompts.py`, `agent.py`, `cli.py`, `trace_log.py`. `currency_agent.py` is now only the entry point. Reason: the CLI, the eval, and a future UI all need the same "run one turn" logic, so it lives in `agent.py`.
+- Check after each step: compile, import (no chat, no LLM call), and an offline script with fake network data covering the EUR math, every tool's error path, and the price table with one or all assets failing.
+
+**Docs**
+- `e02b306` Main README cut down to 4 sections (background, directory, setup, run). The detail moved to `docs/README.md`. Removed the invented example session (K4). Folded in and deleted `read.md`.
+
+**M2: live tool display**
+- `d005dcc` `agent.run_request` now uses `agent.stream(..., stream_mode="values")` and reports each step through an `on_step` callback. `cli.py` prints `🔧 tool(args)` and `✅/❌ tool → first line (+N lines)`.
+- History is saved only after the turn finishes, so a crash halfway doesn't leave a half-finished turn in memory.
+- Check: ran the real `create_agent` loop offline with a scripted fake model (instead of Gemini) that calls two tools, one good and one bad. Both calls and both results printed before the final answer.
+
+**Not yet checked live:** nothing has been run against Gemini since the changes. A live smoke test needs Farrel's OK (free-tier quota).
