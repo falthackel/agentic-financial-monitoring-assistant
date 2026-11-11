@@ -62,6 +62,18 @@ flowchart TD
 
 The agent repeats the loop (think, call a tool, read the result) until it has enough information to answer.
 
+Each step is shown live in the terminal, so you can see the agent's choices:
+
+```
+You: compare USD and XYZ to IDR
+  🔧 get_exchange_rate(from_currency='USD', to_currency='IDR')
+  🔧 get_exchange_rate(from_currency='XYZ', to_currency='IDR')
+  ✅ get_exchange_rate → 1 USD = ... IDR (as of ...)
+  ❌ get_exchange_rate → ERROR: no rate found for XYZ to IDR. ...
+```
+
+`✅` / `❌` comes from the `ERROR:` prefix of the tool result. Multi-line results (tables, search results) show the first line plus `(+N lines)`. This uses `agent.stream(..., stream_mode="values")` in `agent.py`, which reports each step through an `on_step` callback; `cli.py` only does the printing.
+
 ### Code layout
 
 | File | Role |
@@ -111,6 +123,5 @@ Python 3.10. All package versions are pinned in `requirements.txt`.
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
-- The tool calls are only visible in `agent_log.txt` for now, not in the terminal.
 - A Gemini error (for example the free-tier rate limit) currently stops the program.
 - No automated tests yet.

@@ -84,4 +84,4 @@ Then open `.env` and replace `your-key-here` with your key. The `.env` file is i
 4. Useful commands:
    - `reset`: forget the conversation and start fresh
    - `exit` or **ESC**: quit (on macOS/Linux use `Ctrl+C`)
-5. To see exactly which tools the agent called and what they returned, open `agent_log.txt` (it is recreated each time you start the program).
+5. While the agent works, the terminal shows each tool it calls (`🔧`) and whether the result came back OK (`✅`) or failed (`❌`). The full trace is also saved to `agent_log.txt` (recreated each time you start the program).

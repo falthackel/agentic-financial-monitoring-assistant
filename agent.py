@@ -8,12 +8,13 @@ Used by the CLI (cli.py). The evaluation and a future UI can import it too.
 import os
 
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
 
 import trace_log
 from prompts import SYSTEM_PROMPT_V1
-from tools import ALL_TOOLS
+from tools import ALL_TOOLS, TOOL_ERROR_PREFIX
 
 load_dotenv()  # read GOOGLE_API_KEY from the .env file in this folder
 
@@ -66,19 +67,49 @@ def reset_conversation():
     trace_log.start_session()
 
 
-def run_request(question: str) -> str:
+def _steps_from_message(message) -> list:
+    """
+    Turn one new message into step events:
+    - AIMessage with tool_calls -> the agent chose a tool
+    - ToolMessage               -> a tool result came back
+    """
+    if isinstance(message, AIMessage):
+        return [{"type": "tool_call", "tool": call["name"], "args": call["args"]}
+                for call in message.tool_calls]
+    if isinstance(message, ToolMessage):
+        content = str(message.content)
+        ok = message.status != "error" and not content.startswith(TOOL_ERROR_PREFIX)
+        return [{"type": "tool_result", "tool": message.name, "ok": ok, "content": content}]
+    return []
+
+
+def run_request(question: str, on_step=None) -> str:
     """
     One question-and-answer turn. The earlier conversation (if any) is
     sent to the agent too, so it has CONTEXT from previous turns in the
     same session. For example, in "why did it go up?" the agent knows
     "it" means the asset from the previous turn, instead of guessing.
+
+    on_step: optional function called with each step (a dict) as soon as
+    it happens, so the caller can show it live. See _steps_from_message.
     """
     global _conversation_history
     trace_log.log_request(question)
 
-    _conversation_history.append(("human", question))
-    result = agent.invoke({"messages": _conversation_history})
-    _conversation_history = result["messages"]  # keep the full history (including tool calls) for the next turn
+    messages = _conversation_history + [("human", question)]
+    seen = len(messages)
+    final_state = None
+    # stream_mode="values" gives the full state after every agent step
+    for state in agent.stream({"messages": messages}, stream_mode="values"):
+        final_state = state
+        for message in state["messages"][seen:]:
+            for step in _steps_from_message(message):
+                if on_step:
+                    on_step(step)
+        seen = len(state["messages"])
+
+    # save history only after the turn finished, so a failure leaves it unchanged
+    _conversation_history = final_state["messages"]  # full history (including tool calls) for the next turn
 
     answer = extract_text(_conversation_history[-1])
     trace_log.log("\n=== FINAL ANSWER ===")

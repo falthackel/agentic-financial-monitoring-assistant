@@ -45,7 +45,7 @@ ASSET_LABELS = {
 # ---------------------------------------------------------
 # Log helpers for tools
 # ---------------------------------------------------------
-def _format_call(tool_name: str, **kwargs) -> str:
+def format_call(tool_name: str, **kwargs) -> str:
     """Show a tool call as text, e.g. get_exchange_rate(from_currency='USD')."""
     args = ", ".join(f"{key}={value!r}" for key, value in kwargs.items())
     return f"{tool_name}({args})"
@@ -204,7 +204,7 @@ def get_exchange_rate(from_currency: str, to_currency: str) -> str:
         from_currency: source currency code, for example 'USD'
         to_currency: target currency code, for example 'IDR'
     """
-    call = _format_call("get_exchange_rate",
+    call = format_call("get_exchange_rate",
                         from_currency=from_currency, to_currency=to_currency)
     log(f"🔧 [TOOL CALLED] {call}")
     try:
@@ -239,7 +239,7 @@ def get_average_exchange_rate(from_currency: str, to_currency: str,
         start_date: start date in YYYY-MM-DD format
         end_date: end date in YYYY-MM-DD format
     """
-    call = _format_call("get_average_exchange_rate",
+    call = format_call("get_average_exchange_rate",
                         from_currency=from_currency, to_currency=to_currency,
                         start_date=start_date, end_date=end_date)
     log(f"🔧 [TOOL CALLED] {call}")
@@ -285,7 +285,7 @@ def get_price_table(assets: str = "USD,SGD,TWD,XAU,IHSG") -> str:
             "USD,SGD,TWD,XAU,IHSG".
     """
     asset_list = [a.strip().upper() for a in assets.split(",") if a.strip()]
-    call = _format_call("get_price_table", assets=assets)
+    call = format_call("get_price_table", assets=assets)
     log(f"🔧 [TOOL CALLED] {call}")
     if not asset_list:
         return _tool_error(call, "no asset codes given.")
@@ -353,7 +353,7 @@ def web_search(query: str) -> str:
     Args:
         query: search keywords, for example 'bitcoin price in IDR today'
     """
-    call = _format_call("web_search", query=query)
+    call = format_call("web_search", query=query)
     log(f"🔧 [TOOL CALLED] {call}")
     try:
         results = DDGS().text(query, max_results=4)

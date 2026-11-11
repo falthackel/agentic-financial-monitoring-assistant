@@ -6,6 +6,7 @@ Quit: press ESC while waiting for input, or type 'exit'.
 
 import agent
 import trace_log
+from tools import format_call
 
 try:
     import msvcrt  # built into Windows, used to detect the ESC key
@@ -14,12 +15,38 @@ except ImportError:
     HAS_MSVCRT = False  # not Windows: fall back to plain input() + Ctrl+C
 
 
+MAX_SUMMARY_CHARS = 100
+
+
+# ---------------------------------------------------------
+# Live tool-call display
+# ---------------------------------------------------------
+def _summarize(content: str) -> str:
+    """First line of a tool result, plus '(+N lines)' if there are more."""
+    lines = content.strip().splitlines() or [""]
+    first = lines[0]
+    if len(first) > MAX_SUMMARY_CHARS:
+        first = first[:MAX_SUMMARY_CHARS] + "..."
+    if len(lines) > 1:
+        first += f" (+{len(lines) - 1} lines)"
+    return first
+
+
+def print_step(step: dict):
+    """Print one agent step: the tool it chose, or the result it got back."""
+    if step["type"] == "tool_call":
+        print(f"  🔧 {format_call(step['tool'], **step['args'])}", flush=True)
+    elif step["type"] == "tool_result":
+        mark = "✅" if step["ok"] else "❌"
+        print(f"  {mark} {step['tool']} → {_summarize(step['content'])}", flush=True)
+
+
 def ask(question: str) -> str:
     """Send one question (for manual testing outside chat mode)."""
     if not agent.has_history():
         trace_log.start_session()
     print(f"\n>> You: {question}")
-    answer = agent.run_request(question)
+    answer = agent.run_request(question, on_step=print_step)
     print(f"\n>> Agent:\n{answer}")
     return answer
 
@@ -90,5 +117,5 @@ def chat():
             print("[Conversation reset: earlier context is forgotten]")
             continue
 
-        answer = agent.run_request(question)
+        answer = agent.run_request(question, on_step=print_step)
         print(f"\nAgent:\n{answer}")
