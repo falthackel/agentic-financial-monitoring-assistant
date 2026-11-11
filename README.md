@@ -24,10 +24,12 @@ More detail (scope, architecture diagram, limitations, evaluation): [docs/README
 ├── tools.py            # The 4 tools the agent can call (see below)
 ├── prompts.py          # System prompt versions
 ├── trace_log.py        # Writes each tool call and result to agent_log.txt
+├── tests/              # Offline unit tests (no Gemini, no internet)
 ├── docs/README.md      # Detailed project documentation
 ├── docs/dev_log.md     # Development log: task timeline + technical notes
 ├── flowchart.svg       # Architecture diagram (image)
 ├── requirements.txt    # Pinned Python packages
+├── requirements-dev.txt # requirements.txt + pytest
 └── .env.example        # Template for your API key
 ```
 
@@ -86,3 +88,8 @@ Then open `.env` and replace `your-key-here` with your key. The `.env` file is i
    - `reset`: forget the conversation and start fresh
    - `exit` or **ESC**: quit (on macOS/Linux use `Ctrl+C`)
 5. While the agent works, the terminal shows each tool it calls (`🔧`) and whether the result came back OK (`✅`) or failed (`❌`). The full trace is also saved to `agent_log.txt` (recreated each time you start the program).
+6. Optional: run the offline tests (they don't use Gemini or the internet):
+   ```
+   pip install -r requirements-dev.txt
+   pytest
+   ```
