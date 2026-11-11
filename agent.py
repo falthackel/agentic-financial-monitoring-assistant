@@ -128,21 +128,36 @@ def _steps_from_message(message) -> list:
 
 def run_request(question: str, on_step=None) -> str:
     """
-    One question-and-answer turn. The earlier conversation (if any) is
-    sent to the agent too, so it has CONTEXT from previous turns in the
-    same session. For example, in "why did it go up?" the agent knows
-    "it" means the asset from the previous turn, instead of guessing.
-
-    on_step: optional function called with each step (a dict) as soon as
-    it happens, so the caller can show it live. See _steps_from_message.
+    One question-and-answer turn, using the shared conversation history
+    of this program (the CLI and the eval use this).
 
     Raises AgentRunError if the turn fails. The history is then unchanged,
     as if the question was never asked.
     """
     global _conversation_history
+    answer, _conversation_history = run_turn(_conversation_history, question, on_step)
+    return answer
+
+
+def run_turn(history: list, question: str, on_step=None):
+    """
+    One question-and-answer turn with the given history. Returns
+    (answer, new_history). The history is not changed in place, so a
+    caller with its own conversation (e.g. one browser tab in the UI)
+    keeps it separate.
+
+    The earlier conversation is sent to the agent too, so it has CONTEXT
+    from previous turns. For example, in "why did it go up?" the agent
+    knows "it" means the asset from the previous turn, instead of guessing.
+
+    on_step: optional function called with each step (a dict) as soon as
+    it happens, so the caller can show it live. See _steps_from_message.
+
+    Raises AgentRunError if the turn fails.
+    """
     trace_log.log_request(question)
 
-    messages = _conversation_history + [("human", question)]
+    messages = list(history) + [("human", question)]
     seen = len(messages)
     final_state = None
     try:
@@ -164,14 +179,14 @@ def run_request(question: str, on_step=None) -> str:
         trace_log.log(f"[AGENT ERROR] other: {reason}")
         raise AgentRunError("other", reason)
 
-    # save history only after the turn finished, so a failure leaves it unchanged
-    _conversation_history = final_state["messages"]  # full history (including tool calls) for the next turn
+    # the new history is returned only after the turn finished, so a failure leaves it unchanged
+    new_history = final_state["messages"]  # full history (including tool calls) for the next turn
 
-    answer = extract_text(_conversation_history[-1])
+    answer = extract_text(new_history[-1])
     if not answer:
         # Gemini 3 can reply with only non-text blocks
         trace_log.log("[AGENT WARNING] final answer had no text")
         answer = EMPTY_ANSWER_MESSAGE
     trace_log.log("\n=== FINAL ANSWER ===")
     trace_log.log(answer)
-    return answer
+    return answer, new_history

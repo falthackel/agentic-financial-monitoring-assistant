@@ -96,6 +96,23 @@ def test_summary_of_multi_line_result():
     assert cli._summarize("| a | b |\n|---|---|\n| 1 | 2 |") == "| a | b | (+2 lines)"
 
 
+def test_run_turn_keeps_each_conversation_separate():
+    with mock.patch.object(agent, "agent", fake_agent(AIMessage(content="A"), AIMessage(content="B"))):
+        answer_a, history_a = agent.run_turn([], "question A")
+        answer_b, history_b = agent.run_turn([], "question B")
+    assert (answer_a, answer_b) == ("A", "B")
+    assert len(history_a) == len(history_b) == 2
+    assert agent._conversation_history == []  # the shared CLI history is untouched
+
+
+def test_format_step_matches_the_terminal_lines():
+    call = {"type": "tool_call", "tool": "get_exchange_rate",
+            "args": {"from_currency": "USD", "to_currency": "IDR"}}
+    result = {"type": "tool_result", "tool": "web_search", "ok": False, "content": "ERROR: down"}
+    assert cli.format_step(call) == "🔧 get_exchange_rate(from_currency='USD', to_currency='IDR')"
+    assert cli.format_step(result) == "❌ web_search → ERROR: down"
+
+
 def test_history_is_kept_between_turns():
     with mock.patch.object(agent, "agent", fake_agent(AIMessage(content="first"))):
         agent.run_request("question 1")

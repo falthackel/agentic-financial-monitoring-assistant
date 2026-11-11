@@ -40,13 +40,17 @@ def _summarize(content: str) -> str:
     return first
 
 
-def print_step(step: dict):
-    """Print one agent step: the tool it chose, or the result it got back."""
+def format_step(step: dict) -> str:
+    """One agent step as text: the tool it chose, or the result it got back."""
     if step["type"] == "tool_call":
-        print(f"  🔧 {format_call(step['tool'], **step['args'])}", flush=True)
-    elif step["type"] == "tool_result":
-        mark = "✅" if step["ok"] else "❌"
-        print(f"  {mark} {step['tool']} → {_summarize(step['content'])}", flush=True)
+        return f"🔧 {format_call(step['tool'], **step['args'])}"
+    mark = "✅" if step["ok"] else "❌"
+    return f"{mark} {step['tool']} → {_summarize(step['content'])}"
+
+
+def print_step(step: dict):
+    """Print one agent step (used as the on_step callback in the terminal)."""
+    print(f"  {format_step(step)}", flush=True)
 
 
 def _answer(question: str):
