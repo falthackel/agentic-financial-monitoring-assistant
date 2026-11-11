@@ -41,6 +41,9 @@ from langchain.agents import create_agent
 
 load_dotenv()  # baca GOOGLE_API_KEY dari file .env di folder yang sama
 
+# Windows: hindari UnicodeEncodeError (emoji) saat output di-redirect ke file
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 try:
     import msvcrt  # built-in di Windows, dipakai untuk deteksi tombol ESC
     HAS_MSVCRT = True
