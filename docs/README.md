@@ -126,7 +126,28 @@ Python 3.10. All package versions are pinned in `requirements.txt`.
 
 ## Evaluation
 
-*To be added: a set of 10–15 test questions, which tools the agent should call for each, and pass/fail results per prompt version.*
+13 test questions in [eval/eval_cases.yaml](../eval/eval_cases.yaml), each with the tools (and arguments) the agent should use. They cover every tool, a follow-up question, an unknown currency code, an off-topic question, a relative date, and a question in Indonesian.
+
+Three separate scores per case:
+- **Tool choice + arguments:** the right tool, with the right inputs (e.g. Q1 2026 → `2026-01-01` to `2026-03-31`)
+- **Required words:** for "why" questions, the answer must point to the search results
+- **Number grounding:** every number in the answer appears in a tool output, or is a difference / % change of two tool numbers
+
+| Prompt | Tool choice pass | Numbers grounded | Main failure |
+|---|---|---|---|
+| v1 | 12/13 | 13/13 | `causal_why`: causes stated as facts, not attributed to the search |
+
+Full table: [eval/results.md](../eval/results.md). Raw runs (every tool call and answer): [eval/runs/](../eval/runs/).
+
+Run it (uses about 30–45 Gemini requests, so mind the free-tier quota):
+
+```
+python eval/run_eval.py                 # run missing cases for v1, then write results.md
+python eval/run_eval.py --only crypto   # re-run one case
+python eval/run_eval.py --report-only   # rescore saved runs, no Gemini calls
+```
+
+The model ignores temperature, so a case can pass on one run and fail on the next. One run per case is a sample, not a guarantee.
 
 ## Prompt iteration log
 

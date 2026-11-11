@@ -37,7 +37,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T19 | M3 | Graceful error handling (Gemini 429, timeouts, missing key) | 2026-11-11 | 2026-11-11 | done | `ef0b1d2` |
 | T20 | M4b | Offline unit tests (pytest, mocked network): 32 tests | 2026-11-11 | 2026-11-11 | done | `753da25` |
 | T28 | M3 | First live smoke test after the changes (1 question) | 2026-11-11 | 2026-11-11 | done | technical log, Nov 11 |
-| T21 | M4 | Evaluation set (10–15 cases) + `run_eval.py`, run v1 | 2026-11-12 | 2026-11-13 | planned | |
+| T29 | Cleanup | Remove `temperature` (ignored by the model) | 2026-11-11 | 2026-11-11 | done | `0acef1f` |
+| T21 | M4 | Evaluation set (13 cases) + `run_eval.py`, run v1: 12/13 | 2026-11-11 | 2026-11-11 | done | `d0443ec`, `eval/results.md` |
 | T22 | M5 | Prompt v2 from eval failures, re-run, write iteration log | 2026-11-12 | 2026-11-13 | planned | |
 | T23 | M1 | README with real session + eval results; secret check; push to GitHub | 2026-11-14 | 2026-11-14 | planned | |
 | T24 | M6 | `demo_script.md`, clean run, backup recording | 2026-11-15 | 2026-11-15 | planned | |
@@ -72,7 +73,8 @@ gantt
     M3 error handling (T19)                  :done, t19, 2026-11-11, 1d
     M4b unit tests (T20)                     :done, t20, 2026-11-11, 1d
     Live smoke test (T28)                    :done, t28, 2026-11-11, 1d
-    M4 evaluation, v1 (T21)                  :t21, 2026-11-12, 2d
+    Remove temperature (T29)                 :done, t29, 2026-11-11, 1d
+    M4 evaluation, v1 (T21)                  :done, t21, 2026-11-11, 1d
     M5 prompt v2 (T22)                       :t22, 2026-11-12, 2d
 
     section Release
@@ -156,3 +158,20 @@ gantt
   ```
   English prompt, split code, live steps, and the log all worked.
 - **Finding:** Gemini warned `Model 'gemini-3.5-flash-lite' uses fixed sampling defaults; temperature will be ignored`. So `temperature=0` has no effect on this model. Answers can vary between runs, and the eval must allow for that.
+
+**Lost log (mistake).** The Sep 16 session in `agent_log.txt` was overwritten at 19:49 by a scratch test script that called `reset_conversation()` without sending the log elsewhere. The backup copy was made too late, so it held only test output and was deleted. K3 is still proven by the baseline code (`80ba21a`), which logged the false reason on every web search. Since then, tests and the eval always write to their own log file.
+
+**Remove temperature**
+- `0acef1f` Removed `temperature=0`, because the model ignores it. Updated the local project notes.
+
+**M4: evaluation**
+- `d0443ec` Built the eval in two stages, so quota is only spent when needed:
+  - *run*: asks Gemini each case in a fresh conversation (6 s pause, one retry after 60 s on a 429), saves every tool call, result and answer to `eval/runs/<version>.json` after each case. Resumes where it stopped. `--only` re-runs single cases.
+  - *score*: `eval/checks.py` checks tool choice, arguments (with date placeholders like `{last_monday}`), required words, and number grounding (handles `16,000` / `16.000` / `31,79` / "million", rounding). Writes `eval/results.md`. `--report-only` rescores for free.
+  - Prompt versions: `prompts.PROMPTS`, `agent.build_agent(version)`, env var `PROMPT_VERSION`.
+  - 13 cases, see `eval/eval_cases.yaml`. Offline tests for the checks and a full fake-model run: 48 tests in total.
+- **v1 run** (Farrel's OK, about 35 Gemini requests, 19 tool calls, 0 quota errors): **12/13 tool choice pass.**
+  - `causal_why` **failed**: 3 searches, and only 1 result was relevant (the others were converter pages and a 2008 article). The answer still listed 3 causes as facts, with no attribution, and one (TSMC / AI demand) appears in no search result. This is the known M5 failure.
+  - `compare_q1_q2` was first flagged for numbers 21.19 and 3.97. A manual check showed they are correct: Q2 − Q1 and the % change. Changed the checker to mark such numbers "computed" instead of "ungrounded", but only for structured tools (search text has too many numbers). After rescoring: 13/13 grounded.
+  - `relative_date` passed but made one extra, unneeded `get_exchange_rate` call first.
+  - Fixed the report to show arguments in the tool's parameter order.
