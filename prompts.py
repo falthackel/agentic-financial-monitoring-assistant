@@ -22,3 +22,9 @@ SYSTEM_PROMPT_V1 = (
     "If the question has nothing to do with exchange rates or asset "
     "prices, answer normally without calling a tool."
 )
+
+# all versions by name, so the CLI and the eval can pick one
+PROMPTS = {
+    "v1": SYSTEM_PROMPT_V1,
+}
+DEFAULT_PROMPT_VERSION = "v1"

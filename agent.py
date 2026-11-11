@@ -13,7 +13,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
 
 import trace_log
-from prompts import SYSTEM_PROMPT_V1
+from prompts import DEFAULT_PROMPT_VERSION, PROMPTS
 from tools import ALL_TOOLS, TOOL_ERROR_PREFIX
 
 load_dotenv()  # read GOOGLE_API_KEY from the .env file in this folder
@@ -37,11 +37,20 @@ llm = ChatGoogleGenerativeAI(
     max_retries=2,   # library default is 6, which uses up the free quota fast
 )
 
-agent = create_agent(
-    llm,
-    tools=ALL_TOOLS,
-    system_prompt=SYSTEM_PROMPT_V1,
-)
+MODEL_NAME = llm.model
+
+# which system prompt to use: set PROMPT_VERSION=v2 to try another version
+PROMPT_VERSION = os.environ.get("PROMPT_VERSION", DEFAULT_PROMPT_VERSION)
+if PROMPT_VERSION not in PROMPTS:
+    raise SystemExit(f"Unknown PROMPT_VERSION {PROMPT_VERSION!r}. Choose one of: {', '.join(PROMPTS)}")
+
+
+def build_agent(prompt_version: str):
+    """Create the agent with the given system prompt version."""
+    return create_agent(llm, tools=ALL_TOOLS, system_prompt=PROMPTS[prompt_version])
+
+
+agent = build_agent(PROMPT_VERSION)
 
 
 # ---------------------------------------------------------
@@ -93,11 +102,12 @@ def has_history() -> bool:
     return bool(_conversation_history)
 
 
-def reset_conversation():
-    """Clear the conversation history and start a fresh session log."""
+def reset_conversation(new_log: bool = True):
+    """Clear the conversation history. By default also start a fresh session log."""
     global _conversation_history
     _conversation_history = []
-    trace_log.start_session()
+    if new_log:
+        trace_log.start_session()
 
 
 def _steps_from_message(message) -> list:

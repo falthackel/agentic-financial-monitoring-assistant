@@ -1,0 +1,131 @@
+# Evaluation cases for the agent.
+#
+# Fields
+#   id                    short unique name
+#   question              the question, or `turns:` (a list) for a multi-turn case
+#   expected_tools        tools that must be called at least once ([] = no tool at all)
+#   expected_counts       {tool: n} the tool must be called at least n times
+#   forbidden_tools       tools that must NOT be called
+#   expected_args         list of {tool, args}: at least one call of that tool must
+#                         match these args. A list value means "any of these".
+#                         Codes are compared without case; comma lists ignore order.
+#                         Date placeholders: {today}, {last_monday}, {monday_before_last}
+#   answer_mentions_any   the final answer must contain at least one of these words
+#   expected_answer_type  what a good answer looks like (for the reader)
+#   notes                 why this case exists
+#
+# Checks always look at the LAST turn. Number grounding (every number in the
+# answer appears in a tool output) is scored separately for every case.
+
+cases:
+  - id: single_pair
+    question: "What is the USD to IDR rate now?"
+    expected_tools: [get_exchange_rate]
+    expected_args:
+      - tool: get_exchange_rate
+        args: {from_currency: USD, to_currency: IDR}
+    expected_answer_type: one rate with its date
+    notes: simplest path, one tool call
+
+  - id: market_summary
+    question: "Give me a market summary for today."
+    expected_tools: [get_price_table]
+    forbidden_tools: [get_exchange_rate]
+    expected_answer_type: price table
+    notes: must use the table tool once, not many single-pair calls
+
+  - id: subset_table
+    question: "What is the price of gold and IHSG?"
+    expected_tools: [get_price_table]
+    expected_args:
+      - tool: get_price_table
+        args: {assets: "XAU,IHSG"}
+    expected_answer_type: table with only gold and IHSG
+    notes: table tool with only the requested assets
+
+  - id: average_q1
+    question: "What was the average SGD to IDR rate in Q1 2026?"
+    expected_tools: [get_average_exchange_rate]
+    expected_args:
+      - tool: get_average_exchange_rate
+        args: {from_currency: SGD, to_currency: IDR, start_date: "2026-01-01", end_date: "2026-03-31"}
+    expected_answer_type: one average with min and max
+    notes: model must turn "Q1 2026" into the right dates
+
+  - id: compare_q1_q2
+    question: "Compare the TWD to IDR rate in Q1 vs Q2 2026."
+    expected_tools: [get_average_exchange_rate]
+    expected_counts: {get_average_exchange_rate: 2}
+    expected_args:
+      - tool: get_average_exchange_rate
+        args: {from_currency: TWD, to_currency: IDR, start_date: "2026-01-01", end_date: "2026-03-31"}
+      - tool: get_average_exchange_rate
+        args: {from_currency: TWD, to_currency: IDR, start_date: "2026-04-01", end_date: "2026-06-30"}
+    expected_answer_type: two averages and the direction of change
+    notes: two calls with two date ranges
+
+  - id: crypto
+    question: "What is the bitcoin price in IDR?"
+    expected_tools: [web_search]
+    expected_answer_type: price from search results, with a note that it comes from search
+    notes: crypto is not covered by Frankfurter, so web search is the right tool
+
+  - id: causal_why
+    question: "Why did the TWD get stronger recently?"
+    expected_tools: [web_search]
+    answer_mentions_any: [search, according, report, news, source, article]
+    expected_answer_type: reasons attributed to search results
+    notes: the answer must point to the search, not invent a cause (K3)
+
+  - id: follow_up
+    turns:
+      - "What is the USD to IDR rate?"
+      - "What about SGD?"
+    expected_tools: [get_exchange_rate]
+    expected_args:
+      - tool: get_exchange_rate
+        args: {from_currency: SGD, to_currency: IDR}
+    expected_answer_type: SGD to IDR rate
+    notes: second turn only makes sense with memory of the first
+
+  - id: unknown_code
+    question: "What is the rate of XYZ to IDR?"
+    expected_tools: [get_exchange_rate]
+    expected_answer_type: says the rate is not available (or searches), no invented number
+    notes: the tool fails; check the grounding column for invented numbers
+
+  - id: off_topic
+    question: "What is an AI agent?"
+    expected_tools: []
+    expected_answer_type: short explanation, no tool
+    notes: no tool should be called for a general question
+
+  - id: gold_gram
+    question: "How much is 1 gram of gold in rupiah?"
+    expected_tools: [get_price_table]
+    expected_args:
+      - tool: get_price_table
+        args: {assets: "XAU"}
+    expected_answer_type: Rp per gram
+    notes: only get_price_table converts gold to grams
+
+  - id: relative_date
+    question: "What was the USD to TWD rate last Monday?"
+    expected_tools: [get_average_exchange_rate]
+    expected_args:
+      - tool: get_average_exchange_rate
+        args:
+          from_currency: USD
+          to_currency: TWD
+          start_date: ["{last_monday}", "{monday_before_last}"]
+    expected_answer_type: the rate on that date
+    notes: the date must come from TODAY in the prompt. "Last Monday" can mean either of two dates, both accepted
+
+  - id: indonesian_question
+    question: "Berapa kurs SGD ke IDR hari ini?"
+    expected_tools: [get_exchange_rate]
+    expected_args:
+      - tool: get_exchange_rate
+        args: {from_currency: SGD, to_currency: IDR}
+    expected_answer_type: SGD to IDR rate, ideally answered in Indonesian
+    notes: tool choice should not depend on the user's language. Answer language is reviewed by hand

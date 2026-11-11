@@ -10,4 +10,4 @@ __pycache__/
 # Runtime output
 agent_log.txt
 twd_idr_history.csv
-eval/runs/
+eval/runs/*.log

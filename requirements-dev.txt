@@ -1,3 +1,4 @@
 # Development only: the app packages plus the test runner
 -r requirements.txt
 pytest==9.2.0
+PyYAML==6.0.3  # eval/eval_cases.yaml (already installed by langchain-core)
