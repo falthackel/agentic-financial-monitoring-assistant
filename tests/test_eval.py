@@ -67,6 +67,42 @@ def test_check_answer_requires_a_word():
 
 
 # ---------------------------------------------------------
+# Named sources
+# ---------------------------------------------------------
+SEARCH = ["- [bloomberg.com] Taiwan Dollar Weakens: equity inflows ebbed",
+          "- [coinmarketcap.com] BTC IDR: Rp 1,339,621,582"]
+SOURCE_CASE = {"check_sources": True}
+
+
+def test_named_sources_are_found_in_the_answer():
+    answer = ("According to *Bloomberg*, inflows ebbed. Prices (such as CoinMarketCap and "
+              "CoinGecko) differ. Reported by the Central Bank of China.")
+    assert checks.named_sources(answer) == ["Bloomberg", "CoinMarketCap", "CoinGecko",
+                                            "Central Bank of China"]
+
+
+def test_vague_sources_are_not_names():
+    answer = "According to recent reports, and according to Recent Market Reports, it rose."
+    assert checks.named_sources(answer) == []
+
+
+def test_source_found_by_site_name_passes():
+    assert checks.check_sources(SOURCE_CASE, "According to Bloomberg, it fell.", SEARCH) == []
+
+
+def test_invented_source_is_flagged():
+    # the real v2 answer from the eval run on 2026-11-11
+    answer = ("According to recent reports (such as from *Focus Taiwan* or similar financial "
+              "news updates), a strong rally in Taiwan stocks has driven the TWD...")
+    problems = checks.check_sources(SOURCE_CASE, answer, SEARCH)
+    assert problems == ["names a source not in the search results: Focus Taiwan"]
+
+
+def test_source_check_only_runs_when_turned_on():
+    assert checks.check_sources({}, "According to Focus Taiwan, ...", SEARCH) == []
+
+
+# ---------------------------------------------------------
 # Number grounding
 # ---------------------------------------------------------
 @pytest.mark.parametrize("answer, tool_output", [
@@ -156,3 +192,33 @@ def test_run_eval_end_to_end(tmp_path, monkeypatch):
     assert "2/2 | 1/2 | 0 |" in report          # both pass tool checks, one has an invented number
     assert "123.45" in report
     assert (tmp_path / "runs" / "v1.log").exists()  # eval has its own log
+
+
+def test_repeat_runs_a_case_several_times(tmp_path, monkeypatch):
+    cases_file = tmp_path / "cases.yaml"
+    cases_file.write_text("cases:\n  - id: off_topic\n    question: What is an agent?\n"
+                          "    expected_tools: []\n", encoding="utf-8")
+    monkeypatch.setattr(run_eval, "CASES_FILE", cases_file)
+    monkeypatch.setattr(run_eval, "RUNS_DIR", tmp_path / "runs")
+    monkeypatch.setattr(run_eval, "RESULTS_FILE", tmp_path / "results.md")
+    monkeypatch.setattr(run_eval, "REPO_ROOT", tmp_path)
+
+    # run 1 answers without a tool (pass), run 2 calls a tool (fail)
+    replies = iter([
+        AIMessage(content="An agent uses tools."),
+        AIMessage(content="", tool_calls=[{"name": "web_search", "id": "c1", "args": {"query": "agent"}}]),
+        AIMessage(content="Found it."),
+    ])
+    fake = create_agent(FakeToolModel(messages=replies), tools=tools.ALL_TOOLS, system_prompt="t")
+    monkeypatch.setattr(agent, "build_agent", lambda version: fake)
+
+    with mock.patch.object(tools, "DDGS") as ddgs:
+        ddgs.return_value.text.return_value = [{"title": "t", "body": "b", "href": "https://x.org"}]
+        run_eval.run_cases("v1", only=["off_topic"], rerun_all=False, delay=0, repeat=2)
+    run_eval.write_report()
+
+    saved = json.loads((tmp_path / "runs" / "v1.json").read_text(encoding="utf-8"))
+    assert len(saved["repeats"]["off_topic"]) == 2
+    report = (tmp_path / "results.md").read_text(encoding="utf-8")
+    assert "## Repeated runs" in report
+    assert "| v1 | `off_topic` | 1/2 |" in report

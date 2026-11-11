@@ -1,6 +1,6 @@
 # Evaluation Results
 
-Generated 2026-11-11 21:12 by `python eval/run_eval.py`. Cases: [eval_cases.yaml](eval_cases.yaml). Raw runs: [runs/](runs/).
+Generated 2026-11-12 07:17 by `python eval/run_eval.py`. Cases: [eval_cases.yaml](eval_cases.yaml). Raw runs: [runs/](runs/).
 
 **How to read this**
 - **Result** checks tool choice and arguments (plus a required word in the answer for some cases).
@@ -12,7 +12,7 @@ Generated 2026-11-11 21:12 by `python eval/run_eval.py`. Cases: [eval_cases.yaml
 | Prompt | Model | Run | Result pass | Numbers grounded | Errors |
 |---|---|---|---|---|---|
 | v1 | gemini-3.5-flash-lite | 2026-11-11 | 12/13 | 13/13 | 0 |
-| v2 | gemini-3.5-flash-lite | 2026-11-11 | 15/15 | 15/15 | 0 |
+| v2 | gemini-3.5-flash-lite | 2026-11-11 | 14/15 | 15/15 | 0 |
 
 ## Per case
 
@@ -24,7 +24,7 @@ Generated 2026-11-11 21:12 by `python eval/run_eval.py`. Cases: [eval_cases.yaml
 | `average_q1` | What was the average SGD to IDR rate in Q1 2026? | get_average_exchange_rate | get_average_exchange_rate(SGD, IDR, 2026-01-01, 2026-03-31) | ✅ pass | ✅ | get_average_exchange_rate(SGD, IDR, 2026-01-01, 2026-03-31) | ✅ pass | ✅ |
 | `compare_q1_q2` | Compare the TWD to IDR rate in Q1 vs Q2 2026. | get_average_exchange_rate | get_average_exchange_rate(TWD, IDR, 2026-01-01, 2026-03-31), get_average_exchange_rate(TWD, IDR, 2026-04-01, 2026-06-30) | ✅ pass | ✅ (computed: 21.19, 3.97) | get_average_exchange_rate(TWD, IDR, 2026-01-01, 2026-03-31), get_average_exchange_rate(TWD, IDR, 2026-04-01, 2026-06-30) | ✅ pass | ✅ (computed: 21.19, 3.97) |
 | `crypto` | What is the bitcoin price in IDR? | web_search | web_search(bitcoin price in IDR today), web_search(current bitcoin price in IDR CoinMarketCap) | ✅ pass | ✅ | web_search(bitcoin price in IDR today), web_search(current Bitcoin price in IDR CoinMarketCap) | ✅ pass | ✅ |
-| `causal_why` | Why did the TWD get stronger recently? | web_search | web_search(TWD strengthened reasons 2026 Taiwan dollar currency appreciation), web_search(Taiwan dollar appreciation reasons recent news TWD strong), web_search(why did Taiwan dollar appreciate sharply causes factors) | ❌ fail | ✅ | web_search(Taiwan dollar TWD stronger recent reasons 2026), web_search(why is Taiwan dollar appreciating recent news TWD appreciation) | ✅ pass | ✅ |
+| `causal_why` | Why did the TWD get stronger recently? | web_search | web_search(TWD strengthened reasons 2026 Taiwan dollar currency appreciation), web_search(Taiwan dollar appreciation reasons recent news TWD strong), web_search(why did Taiwan dollar appreciate sharply causes factors) | ❌ fail | ✅ | web_search(Taiwan dollar TWD stronger recent reasons 2026), web_search(why is Taiwan dollar appreciating recent news TWD appreciation) | ❌ fail | ✅ |
 | `follow_up` | What is the USD to IDR rate? → What about SGD? | get_exchange_rate | get_exchange_rate(SGD, IDR) | ✅ pass | ✅ | get_exchange_rate(SGD, IDR) | ✅ pass | ✅ |
 | `unknown_code` | What is the rate of XYZ to IDR? | get_exchange_rate | get_exchange_rate(XYZ, IDR), web_search(XYZ currency to IDR exchange rate) | ✅ pass | ✅ | get_exchange_rate(XYZ, IDR), web_search(XYZ currency to IDR) | ✅ pass | ✅ |
 | `off_topic` | What is an AI agent? | (no tool) | (none) | ✅ pass | ✅ | (none) | ✅ pass | ✅ |
@@ -39,4 +39,8 @@ Generated 2026-11-11 21:12 by `python eval/run_eval.py`. Cases: [eval_cases.yaml
 ### v1 · `causal_why`
 - answer mentions none of: search, according, report, news, source, article
 - answer: "The recent sharp appreciation of the New Taiwan Dollar (TWD) against the U.S. Dollar has been driven by several key factors: 1. **Market Speculation and Tariff Talks:** A primary driver behind the rapid surges has been heavy market speculation closely tied to ongoing trade and tariff negotiations be..."
+
+### v2 · `causal_why`
+- names a source not in the search results: Focus Taiwan
+- answer: "According to recent reports, the strengthening and rebound of the New Taiwan Dollar (TWD) have been driven by the following factors: * **Stock Market Rally:** According to recent reports (such as from *Focus Taiwan* or similar financial news updates), a strong rally in Taiwan stocks has driven the T..."
 

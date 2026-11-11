@@ -18,6 +18,7 @@ NOTE: the ISO code for gold is XAU ("XAUG" is not a standard code).
 import datetime
 import logging
 from collections import defaultdict
+from urllib.parse import urlparse
 
 import requests
 import yfinance as yf
@@ -399,6 +400,9 @@ def web_search(query: str) -> str:
     AS A FALLBACK when the other structured data tools fail (for example
     crypto assets or codes they don't recognize).
 
+    Each result starts with its website in brackets, e.g. [bloomberg.com],
+    so answers can say where a claim comes from.
+
     Args:
         query: search keywords, for example 'bitcoin price in IDR today'
     """
@@ -409,11 +413,19 @@ def web_search(query: str) -> str:
         if not results:
             return _tool_error(call, "no search results found.")
 
-        formatted = "\n".join(f"- {r['title']}: {r['body']}" for r in results)
-        log(f"✅ [TOOL OK] found {len(results)} search results")
+        sites = [_site_name(r.get("href", "")) for r in results]
+        formatted = "\n".join(f"- [{site}] {r['title']}: {r['body']}"
+                              for site, r in zip(sites, results))
+        log(f"✅ [TOOL OK] found {len(results)} search results: {', '.join(sites)}")
         return formatted
     except Exception as e:
         return _tool_error(call, f"search failed: {e}")
+
+
+def _site_name(url: str) -> str:
+    """'https://www.bloomberg.com/news/...' -> 'bloomberg.com'."""
+    host = urlparse(url).netloc.lower()
+    return host.removeprefix("www.") or "unknown site"
 
 
 ALL_TOOLS = [get_exchange_rate, get_average_exchange_rate, get_price_table, web_search]

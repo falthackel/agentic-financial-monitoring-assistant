@@ -2,9 +2,10 @@
 Scoring rules for the evaluation. No LLM and no network, so these can be
 unit-tested and re-run on saved results at any time.
 
-Three separate checks:
+Separate checks:
 - check_tools: did the agent call the expected tools with the expected args?
 - check_answer: does the answer contain a required word (e.g. it cites a search)?
+- check_sources: is every source the answer names really in the search results?
 - ungrounded_numbers: numbers in the answer that appear in no tool output
 """
 
@@ -79,6 +80,47 @@ def check_answer(case: dict, answer: str) -> list:
     words = case.get("answer_mentions_any")
     if words and not any(word.lower() in answer.lower() for word in words):
         return [f"answer mentions none of: {', '.join(words)}"]
+    return []
+
+
+# ---------------------------------------------------------
+# Named sources
+# ---------------------------------------------------------
+# a capitalized name right after "according to", "such as (from)", "reported by", "citing"
+SOURCE_PATTERN = re.compile(
+    r"(?i:according to|such as(?: from)?|reported by|citing)\s+(?i:the\s+)?"
+    r"([A-Z][\w&.'-]*(?:\s+(?:[A-Z][\w&.'-]*|of|and))*)"
+)
+# words that look like a name but only describe ("According to Recent Reports")
+GENERIC_WORDS = {"recent", "market", "markets", "financial", "news", "report", "reports",
+                 "search", "results", "data", "analysts", "experts", "sources", "the"}
+
+
+def _squash(text: str) -> str:
+    """Lowercase letters and digits only: 'Focus Taiwan' and 'focustaiwan.tw' both contain 'focustaiwan'."""
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+def named_sources(answer: str) -> list:
+    """Source names the answer gives, e.g. ['Bloomberg', 'Focus Taiwan']."""
+    text = answer.replace("*", "").replace("_", "")
+    names = []
+    for match in SOURCE_PATTERN.finditer(text):
+        for name in re.split(r"\s+and\s+", match.group(1)):
+            name = re.sub(r"\s+(?:of|and)$", "", name).strip(" .'")
+            if name and not all(word.lower() in GENERIC_WORDS for word in name.split()):
+                names.append(name)
+    return names
+
+
+def check_sources(case: dict, answer: str, search_outputs: list) -> list:
+    """Every source the answer names must appear in the search results (text or site)."""
+    if not case.get("check_sources"):
+        return []
+    searched = _squash(" ".join(search_outputs))
+    missing = [name for name in named_sources(answer) if _squash(name) not in searched]
+    if missing:
+        return [f"names a source not in the search results: {', '.join(missing)}"]
     return []
 
 

@@ -11,6 +11,8 @@
 #                         Codes are compared without case; comma lists ignore order.
 #                         Date placeholders: {today}, {last_monday}, {monday_before_last}
 #   answer_mentions_any   the final answer must contain at least one of these words
+#   check_sources         true = every source the answer names ("according to X")
+#                         must appear in the web_search results
 #   expected_answer_type  what a good answer looks like (for the reader)
 #   notes                 why this case exists
 #
@@ -67,6 +69,7 @@ cases:
   - id: crypto
     question: "What is the bitcoin price in IDR?"
     expected_tools: [web_search]
+    check_sources: true
     expected_answer_type: price from search results, with a note that it comes from search
     notes: crypto is not covered by Frankfurter, so web search is the right tool
 
@@ -74,6 +77,7 @@ cases:
     question: "Why did the TWD get stronger recently?"
     expected_tools: [web_search]
     answer_mentions_any: [search, according, report, news, source, article]
+    check_sources: true
     expected_answer_type: reasons attributed to search results
     notes: the answer must point to the search, not invent a cause (K3)
 

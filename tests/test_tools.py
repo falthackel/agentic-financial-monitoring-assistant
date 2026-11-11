@@ -131,6 +131,22 @@ def test_web_search_no_results():
     assert out.startswith(TOOL_ERROR_PREFIX)
 
 
+def test_web_search_shows_each_results_site(temp_log_file):
+    results = [
+        {"title": "Taiwan Dollar Weakens", "body": "equity inflows ebbed",
+         "href": "https://www.bloomberg.com/news/articles/x"},
+        {"title": "No link", "body": "text"},
+    ]
+    with mock.patch.object(tools, "DDGS") as ddgs:
+        ddgs.return_value.text.return_value = results
+        out = tools.web_search.invoke({"query": "taiwan dollar"})
+    assert out.splitlines() == [
+        "- [bloomberg.com] Taiwan Dollar Weakens: equity inflows ebbed",
+        "- [unknown site] No link: text",
+    ]
+    assert "found 2 search results: bloomberg.com, unknown site" in temp_log_file.read_text(encoding="utf-8")
+
+
 def test_web_search_network_error():
     with mock.patch.object(tools, "DDGS") as ddgs:
         ddgs.return_value.text.side_effect = RuntimeError("network down")

@@ -105,7 +105,7 @@ def checks_preview(text: str, limit: int = 120) -> str:
     return text if len(text) <= limit else text[:limit] + "..."
 
 
-def run_cases(version: str, only: list, rerun_all: bool, delay: float):
+def run_cases(version: str, only: list, rerun_all: bool, delay: float, repeat: int = 1):
     import agent  # imported here so --report-only works without an API key
     import cli
     import trace_log
@@ -139,15 +139,25 @@ def run_cases(version: str, only: list, rerun_all: bool, delay: float):
         todo = [case for case in cases
                 if case["id"] not in run["cases"] or run["cases"][case["id"]]["error"]]
 
-    print(f"Prompt {version}: running {len(todo)} of {len(cases)} cases "
-          f"({delay:.0f}s pause between cases)\n")
+    print(f"Prompt {version}: running {len(todo)} of {len(cases)} cases"
+          f"{f', {repeat} times each' if repeat > 1 else ''} ({delay:.0f}s pause between runs)\n")
+    first = True
     for number, case in enumerate(todo, start=1):
-        if number > 1:
-            time.sleep(delay)
-        print(f"[{number}/{len(todo)}] {case['id']}")
-        run["cases"][case["id"]] = run_case(agent, cli, case)
-        save_run(run)  # save after every case, so a crash loses nothing
-        print()
+        records = []
+        for attempt in range(1, repeat + 1):
+            if not first:
+                time.sleep(delay)
+            first = False
+            label = f" (run {attempt}/{repeat})" if repeat > 1 else ""
+            print(f"[{number}/{len(todo)}] {case['id']}{label}")
+            records.append(run_case(agent, cli, case))
+            run["cases"][case["id"]] = records[-1]  # the main table shows the latest run
+            if repeat > 1:
+                run.setdefault("repeats", {})[case["id"]] = records
+            else:
+                run.get("repeats", {}).pop(case["id"], None)  # old repeats no longer match
+            save_run(run)  # save after every run, so a crash loses nothing
+            print()
 
 
 # ---------------------------------------------------------
@@ -165,11 +175,14 @@ def score_case(case: dict, record: dict) -> dict:
     results = [s for turn in record["turns"] for s in turn["steps"] if s["type"] == "tool_result"]
     tool_outputs = [s["content"] for s in results]
     structured_outputs = [s["content"] for s in results if s["tool"] != "web_search"]
+    search_outputs = [s["content"] for s in results if s["tool"] == "web_search"]
     questions = " ".join(turn["question"] for turn in record["turns"])
     run_date = datetime.date.fromisoformat(record["run_date"])
+    answer = last_turn["answer"] or ""
 
     problems = (checks.check_tools(case, calls, run_date)
-                + checks.check_answer(case, last_turn["answer"] or ""))
+                + checks.check_answer(case, answer)
+                + checks.check_sources(case, answer, search_outputs))
     numbers = checks.classify_numbers(last_turn["answer"] or "", tool_outputs, questions,
                                       structured_outputs)
     return {
@@ -285,8 +298,30 @@ def write_report():
     if not any_problem:
         lines.append("None.")
 
+    lines += _repeat_section(cases, versions, runs)
     RESULTS_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"Wrote {RESULTS_FILE.relative_to(REPO_ROOT)}")
+
+
+def _repeat_section(cases: list, versions: list, runs: dict) -> list:
+    """Table for cases run several times (--repeat): how often each passed."""
+    rows = []
+    for version in versions:
+        for case in cases:
+            records = runs[version].get("repeats", {}).get(case["id"])
+            if not records:
+                continue
+            scores = [score_case(case, record) for record in records]
+            passed = sum(score["status"] == "pass" for score in scores)
+            seen = sorted({problem for score in scores for problem in score.get("problems", [])})
+            rows.append(f"| {version} | `{case['id']}` | {passed}/{len(scores)} | "
+                        f"{_cell('; '.join(seen)) or '–'} |")
+    if not rows:
+        return []
+    return ["", "## Repeated runs", "",
+            "Some cases were run several times (`--repeat`), because one run of a model "
+            "that ignores temperature is only a sample.", "",
+            "| Prompt | Case | Passed | Problems seen |", "|---|---|---|---|", *rows]
 
 
 def main():
@@ -296,12 +331,14 @@ def main():
     parser.add_argument("--rerun-all", action="store_true", help="re-run every case")
     parser.add_argument("--report-only", action="store_true", help="only rescore saved runs")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY_SECONDS,
-                        help="seconds to wait between cases")
+                        help="seconds to wait between runs")
+    parser.add_argument("--repeat", type=int, default=1,
+                        help="run each selected case this many times (e.g. for flaky cases)")
     args = parser.parse_args()
 
     if not args.report_only:
         only = [case_id.strip() for case_id in args.only.split(",") if case_id.strip()]
-        run_cases(args.prompt, only, args.rerun_all, args.delay)
+        run_cases(args.prompt, only, args.rerun_all, args.delay, max(1, args.repeat))
     write_report()
 
 
