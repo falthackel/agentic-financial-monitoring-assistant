@@ -122,7 +122,51 @@ Python 3.10. All package versions are pinned in `requirements.txt`.
 
 ## Sample session
 
-*To be added: a real captured session (no made-up numbers).*
+A real run on 2026-11-11 (prompt v2), copied from the terminal. The three questions are one conversation, so the second question's "that SGD price" refers to the first answer.
+
+```
+You: Give me a market summary for today.
+  🔧 get_price_table()
+  ✅ get_price_table → | Asset | Price | Change (vs previous day) | Last Update | (+6 lines)
+
+Agent:
+Here is the market summary for today (November 11, 2026):
+
+| Asset | Price | Change (vs previous day) | Last Update |
+|---|---|---|---|
+| **USD** | Rp18,103.91 | 🔺 +0.04% | 2026-11-11 • 20:42 |
+| **SGD** | Rp14,150.15 | 🔻 -0.00% | 2026-11-11 • 20:42 |
+| **TWD** | Rp550.64 | 🔻 -0.05% | 2026-11-11 • 20:42 |
+| **Gold (XAU)** | $4,072.57 / oz<br>(Rp2,370,454 / gram) | 🔻 -0.61% | 2026-11-11 • 20:42 |
+| **IHSG** | Rp5,115.04 | 🔻 -0.21% | 2026-11-11 16:00 |
+
+You: How does that SGD price compare with its Q1 2026 average?
+  🔧 get_average_exchange_rate(to_currency='IDR', start_date='2026-01-01', end_date='2026-03-31', from_currency='SGD')
+  ✅ get_average_exchange_rate → Average 1 SGD = 13212.7 IDR from 2026-01-01 to 2026-03-31 (90 days of data, min 13028.4, max 13346.7...
+
+Agent:
+The current SGD price is **Rp14,150.15**, which is significantly higher than its average during Q1 2026.
+
+For comparison:
+* **Q1 2026 Average:** Rp13,212.70 per SGD (ranging from a low of Rp13,028.40 to a high of Rp13,346.70).
+* **Current Difference:** The current rate of Rp14,150.15 is about **Rp937.45 (+7.09%) higher** than the Q1 average.
+
+You: Why did the Taiwan dollar get weaker recently?
+  🔧 web_search(query='Taiwan dollar depreciated weaker reason 2026 November')
+  ✅ web_search → - Gold price in India: Rates on November 11: Gold has an inverse correlation with the US Dollar and ... (+3 lines)
+  🔧 web_search(query='Taiwan dollar weakens November 2026 Bloomberg')
+  ❌ web_search → ERROR: search failed: No results found.
+
+Agent:
+According to Bloomberg, the Taiwan dollar weakened recently as **equity inflows ebbed amid a rebound in the greenback (US Dollar)** and the island's stocks snapped a multi-day rally alongside smaller foreign capital inflows.
+```
+
+What this shows:
+- **One tool call for a whole table** (`get_price_table`), not five single-rate calls.
+- **Memory:** "that SGD price" was understood from the previous answer. The difference (Rp937.45, +7.09%) is correct arithmetic on the two tool numbers.
+- **A failed tool doesn't break the answer:** the second search failed (❌). The agent used the first search's results.
+- **Claims tied to a source:** the Bloomberg result in the first search says *"Taiwan's dollar depreciated the most since January as equity inflows ebbed amid a rebound in the greenback"*, and the answer names it. The search snippet has no date, so "recently" is the agent's reading, not something the source confirms.
+- The agent rewrote the "Last Update" column a little: it dropped the word "checked" before the time. The times are the moment we fetched the data, not market times (see *How the tools work*).
 
 ## Evaluation
 
@@ -163,4 +207,5 @@ The chat uses v2 by default. To try another version, set `PROMPT_VERSION`, e.g. 
 - Exchange rates are daily, not live. On weekends and holidays the latest rate is from the last working day.
 - yfinance has no explicit timeout setting. A slow response can make the IHSG row slow.
 - `agent_log.txt` is recreated every time the program starts, so it only holds the current session.
+- The log stores a short summary of each web search ("found 4 results"), not the result text. To check a claim later, you have to repeat the search (the eval's `eval/runs/*.json` does keep full results).
 - The free Gemini tier has per-minute and per-day limits. When they are hit, the agent shows a "quota reached" message and you have to wait.
