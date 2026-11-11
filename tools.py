@@ -16,6 +16,7 @@ NOTE: the ISO code for gold is XAU ("XAUG" is not a standard code).
 """
 
 import datetime
+import logging
 from collections import defaultdict
 
 import requests
@@ -25,9 +26,16 @@ from langchain_core.tools import tool
 
 from trace_log import log
 
+# yfinance prints "possibly delisted" for any day without trading (e.g. a
+# Sunday). Our tools already return a clear ERROR for that, so hide it.
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
+
 API_BASE = "https://api.frankfurter.dev/v2"
 GRAMS_PER_TROY_OZ = 31.1034768
 YF_TIMEOUT = 10  # seconds for each yfinance request
+
+# stock indexes we can look up in yfinance (code the user types -> yfinance ticker)
+INDEX_TICKERS = {"IHSG": "^JKSE"}
 
 # Every tool failure starts with this text. Code checks this prefix,
 # never the wording of the message.
@@ -187,6 +195,18 @@ def _get_ihsg_data():
     return price, pct_change, last_update
 
 
+def _get_index_history(index_code: str, start_date: str, end_date: str) -> list:
+    """Daily closing values of a stock index from start_date to end_date (both included)."""
+    # yfinance does not include the end date, so ask for one day more
+    end_plus_one = (datetime.date.fromisoformat(end_date) + datetime.timedelta(days=1)).isoformat()
+    datetime.date.fromisoformat(start_date)  # raise a clear error for a bad start date too
+    history = yf.Ticker(INDEX_TICKERS[index_code]).history(
+        start=start_date, end=end_plus_one, timeout=YF_TIMEOUT)
+    if history.empty:
+        return []
+    return [float(close) for close in history["Close"]]
+
+
 # ---------------------------------------------------------
 # 1. TOOL: latest rate for one pair
 # ---------------------------------------------------------
@@ -234,8 +254,12 @@ def get_average_exchange_rate(from_currency: str, to_currency: str,
     Calculate the average daily exchange rate between two currencies over
     a date range. Useful for comparing periods (for example Q1 vs Q2).
 
+    Also works for the IHSG stock index: use from_currency='IHSG' to get
+    the average daily closing value in index points (to_currency is
+    ignored). Use it to compare today's IHSG with a past period.
+
     Args:
-        from_currency: source currency code, for example 'USD'
+        from_currency: source currency code, for example 'USD', or 'IHSG'
         to_currency: target currency code, for example 'IDR'
         start_date: start date in YYYY-MM-DD format
         end_date: end date in YYYY-MM-DD format
@@ -244,6 +268,9 @@ def get_average_exchange_rate(from_currency: str, to_currency: str,
                         from_currency=from_currency, to_currency=to_currency,
                         start_date=start_date, end_date=end_date)
     log(f"🔧 [TOOL CALLED] {call}")
+    index_code = from_currency.strip().upper()
+    if index_code in INDEX_TICKERS:
+        return _average_index(call, index_code, start_date, end_date)
     try:
         cross = _fetch_eur_cross_series(
             from_currency, to_currency,
@@ -266,6 +293,25 @@ def get_average_exchange_rate(from_currency: str, to_currency: str,
         return _tool_error(call, f"could not fetch historical rates: {e}")
 
 
+def _average_index(call: str, index_code: str, start_date: str, end_date: str) -> str:
+    """The IHSG part of get_average_exchange_rate (data from yfinance, not Frankfurter)."""
+    try:
+        closes = _get_index_history(index_code, start_date, end_date)
+        if not closes:
+            return _tool_error(
+                call,
+                f"no {index_code} data between {start_date} and {end_date}. "
+                "The market may have been closed on those days (weekend or holiday).")
+        avg = sum(closes) / len(closes)
+        result = (f"Average {index_code} close = {avg:.2f} points "
+                  f"from {start_date} to {end_date} ({len(closes)} trading days, "
+                  f"min {min(closes):.2f}, max {max(closes):.2f})")
+        log(f"✅ [TOOL OK] {result}")
+        return result
+    except Exception as e:
+        return _tool_error(call, f"could not fetch {index_code} history: {e}")
+
+
 # ---------------------------------------------------------
 # 3. TOOL: price table for many assets at once (in IDR)
 # ---------------------------------------------------------
@@ -275,7 +321,9 @@ def get_price_table(assets: str = "USD,SGD,TWD,XAU,IHSG") -> str:
     Build a TABLE of prices for several assets at once, with the % change
     and the last update time. This is the MAIN tool for "today's price
     update", "market summary", and similar requests. Gold (XAU) is shown
-    in USD per troy oz PLUS Rp per gram and Rp per 0.01 gram.
+    in USD per troy oz PLUS Rp per gram and Rp per 0.01 gram. IHSG is
+    shown in index points (today only; for history use
+    get_average_exchange_rate with 'IHSG').
 
     Do NOT call get_exchange_rate many times for this. This tool already
     calculates and formats everything in one call.
@@ -304,7 +352,7 @@ def get_price_table(assets: str = "USD,SGD,TWD,XAU,IHSG") -> str:
                 last_update = _format_daily_update(data["date"])
             elif asset == "IHSG":
                 price, pct, last_update = _get_ihsg_data()
-                price_str = f"Rp{price:,.2f}"
+                price_str = f"{price:,.2f} pts"  # an index is in points, not rupiah
             else:
                 price, pct, date_str = _get_price_and_change(asset, "IDR")
                 price_str = f"Rp{price:,.2f}"

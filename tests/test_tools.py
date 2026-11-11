@@ -154,6 +154,13 @@ def test_price_table_still_renders_when_one_asset_fails():
     assert "FAILED: no data for IHSG" in lines[3]
 
 
+def test_price_table_shows_ihsg_in_points():
+    with mock.patch.object(tools, "_get_ihsg_data", return_value=(5115.04, -0.21, "2026-11-11 16:00")):
+        out = tools.get_price_table.invoke({"assets": "IHSG"})
+    assert "| IHSG | 5,115.04 pts |" in out
+    assert "Rp" not in out
+
+
 def test_price_table_is_an_error_when_every_asset_fails():
     with patch_frankfurter(side_effect=TimeoutError("timed out")):
         out = tools.get_price_table.invoke({"assets": "USD,SGD"})
@@ -162,3 +169,69 @@ def test_price_table_is_an_error_when_every_asset_fails():
 
 def test_price_table_with_no_assets():
     assert tools.get_price_table.invoke({"assets": " , "}).startswith(TOOL_ERROR_PREFIX)
+
+
+# ---------------------------------------------------------
+# IHSG history (yfinance, through get_average_exchange_rate)
+# ---------------------------------------------------------
+def fake_ticker(closes):
+    """A fake yfinance Ticker whose history() returns these closing values."""
+    import pandas as pd
+    ticker = mock.Mock()
+    ticker.history.return_value = pd.DataFrame({"Close": closes})
+    return ticker
+
+
+IHSG_Q1 = {"from_currency": "IHSG", "to_currency": "IDR",
+           "start_date": "2026-01-01", "end_date": "2026-03-31"}
+
+
+def test_ihsg_average_uses_yfinance_not_frankfurter():
+    ticker = fake_ticker([8000.0, 8200.0, 8400.0])
+    with mock.patch.object(tools.yf, "Ticker", return_value=ticker) as make_ticker, \
+         mock.patch.object(tools.requests, "get") as frankfurter:
+        out = tools.get_average_exchange_rate.invoke(IHSG_Q1)
+
+    assert out == ("Average IHSG close = 8200.00 points from 2026-01-01 to 2026-03-31 "
+                   "(3 trading days, min 8000.00, max 8400.00)")
+    make_ticker.assert_called_once_with("^JKSE")
+    frankfurter.assert_not_called()
+
+
+def test_ihsg_history_includes_the_end_date():
+    ticker = fake_ticker([8000.0])
+    with mock.patch.object(tools.yf, "Ticker", return_value=ticker):
+        tools.get_average_exchange_rate.invoke(IHSG_Q1)
+    # yfinance's end is exclusive, so we ask for one day after end_date
+    assert ticker.history.call_args.kwargs["end"] == "2026-04-01"
+    assert ticker.history.call_args.kwargs["start"] == "2026-01-01"
+
+
+def test_ihsg_code_is_case_insensitive():
+    with mock.patch.object(tools.yf, "Ticker", return_value=fake_ticker([1.0])):
+        out = tools.get_average_exchange_rate.invoke(dict(IHSG_Q1, from_currency=" ihsg "))
+    assert not out.startswith(TOOL_ERROR_PREFIX)
+
+
+def test_ihsg_market_closed_is_an_error_with_a_hint():
+    with mock.patch.object(tools.yf, "Ticker", return_value=fake_ticker([])):
+        out = tools.get_average_exchange_rate.invoke(
+            dict(IHSG_Q1, start_date="2026-11-08", end_date="2026-11-08"))  # a Sunday
+    assert out.startswith(TOOL_ERROR_PREFIX)
+    assert "market may have been closed" in out
+
+
+@pytest.mark.parametrize("problem", [
+    {"start_date": "last monday"},                       # not a date
+    {"_raise": TimeoutError("timed out")},               # network
+])
+def test_ihsg_history_failures_return_error(problem):
+    args = dict(IHSG_Q1)
+    ticker = fake_ticker([1.0])
+    if "_raise" in problem:
+        ticker.history.side_effect = problem["_raise"]
+    else:
+        args.update(problem)
+    with mock.patch.object(tools.yf, "Ticker", return_value=ticker):
+        out = tools.get_average_exchange_rate.invoke(args)
+    assert out.startswith(TOOL_ERROR_PREFIX)

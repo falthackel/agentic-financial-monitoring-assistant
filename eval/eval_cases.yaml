@@ -121,6 +121,24 @@ cases:
     expected_answer_type: the rate on that date
     notes: the date must come from TODAY in the prompt. "Last Monday" can mean either of two dates, both accepted
 
+  - id: ihsg_average
+    question: "What was the average IHSG in Q1 2026?"
+    expected_tools: [get_average_exchange_rate]
+    expected_args:
+      - tool: get_average_exchange_rate
+        args: {from_currency: IHSG, start_date: "2026-01-01", end_date: "2026-03-31"}
+    expected_answer_type: average closing value in index points, with min and max
+    notes: added after rehearsal finding F1 (no IHSG history). IHSG history comes from yfinance
+
+  - id: ihsg_today_vs_history
+    question: "Compare today's IHSG with its Q1 2026 average."
+    expected_tools: [get_price_table, get_average_exchange_rate]
+    expected_args:
+      - tool: get_average_exchange_rate
+        args: {from_currency: IHSG, start_date: "2026-01-01", end_date: "2026-03-31"}
+    expected_answer_type: today's value, the Q1 average, and the difference
+    notes: added after F1. Needs two tools - the table for today, the history tool for Q1
+
   - id: indonesian_question
     question: "Berapa kurs SGD ke IDR hari ini?"
     expected_tools: [get_exchange_rate]
