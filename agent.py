@@ -28,9 +28,10 @@ EMPTY_ANSWER_MESSAGE = "(The model returned no text answer. Please try again or 
 # ---------------------------------------------------------
 # Set up the Gemini model + agent
 # ---------------------------------------------------------
+# No temperature setting: this model uses fixed sampling and ignores it
+# (Gemini prints a warning if we set it). See docs/learning_notes.md.
 llm = ChatGoogleGenerativeAI(
     model="gemini-3.5-flash-lite",
-    temperature=0,
     api_key=API_KEY,
     timeout=30,      # seconds per Gemini request
     max_retries=2,   # library default is 6, which uses up the free quota fast
