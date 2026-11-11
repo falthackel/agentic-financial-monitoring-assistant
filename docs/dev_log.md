@@ -48,7 +48,8 @@ Status: `done`, `in progress`, `planned`, `dropped`.
 | T33 | Fix | F1: IHSG history (average / compare periods), v2 re-run 15/15 | 2026-11-11 | 2026-11-11 | done | `78aeebb`, `eval/results.md` |
 | T34 | Fix | F2: web_search gives no source names, so the agent invented one | 2026-11-12 | 2026-11-12 | done | `d74f257`, repeated runs 6/6 |
 | T35 | UI | Streamlit UI (nice-to-have #7) | 2026-11-12 | 2026-11-12 | done | `f816011` + UI commit; live test pending |
-| T25 | Release | Feature freeze, tag `demo-v1` | 2026-11-15 | 2026-11-15 | planned | |
+| T36 | Fix | Gantt chart broken on GitHub (colon in task names) | 2026-11-12 | 2026-11-12 | done | `cb7f39c`, pushed by Farrel |
+| T25 | Release | Feature freeze, tag `demo-v1` (3 days early) | 2026-11-12 | 2026-11-12 | done | tag `demo-v1` |
 | T26 | Release | Rehearsal, bug fixes only | 2026-11-16 | 2026-11-16 | planned | |
 | T27 | Release | Demo day | 2026-11-17 | 2026-11-17 | planned | |
 
@@ -91,7 +92,8 @@ gantt
     Fix F2 - source names in search (T34)    :done, t34, 2026-11-12, 1d
     Streamlit UI (T35)                       :done, t35, 2026-11-12, 1d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
-    Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
+    Fix Gantt chart on GitHub (T36)          :done, t36, 2026-11-12, 1d
+    Freeze, tag demo-v1 (T25)                :done, milestone, t25, 2026-11-12, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
     Demo day (T27)                           :milestone, t27, 2026-11-17, 0d
 ```
@@ -278,4 +280,18 @@ gantt
 - **Cause, found by testing one change at a time:** two task names had a colon, `Fix F1: IHSG history` and `Fix F2: source names in search`. Mermaid splits a task line at its first colon, so the rest of the name was read as task data. Removing the colons fixed it. Changing the milestones didn't (they were fine).
 - **Fix:** renamed them `Fix F1 - …` and `Fix F2 - …`.
 - **Guard:** `tests/test_docs.py` fails if a Gantt task name contains a colon or a task line has an unexpected format. It flags exactly the two broken lines in the old version. 74 tests.
-- **Remaining tasks:** T24 (clean run + backup recording, Nov 15), T25 (freeze + `demo-v1` tag, Nov 15), T26 (rehearsal, Nov 16), T27 (demo day, Nov 17).
+- **Still broken on GitHub after the fix:** Farrel saw the same error again. Cause: the fix was committed locally but not pushed yet, so GitHub still had the old chart (`ad37f8b`). Also checked the fix with **Mermaid 10** (10.9.8) as well as 11, in case GitHub uses an older version: the fixed chart renders on both, and the old one fails on both with the same error. Farrel then pushed (`cb7f39c`, plus his own `f09783b`, which only removed the final newline in `requirements.txt`). From now on, Farrel does the pushes himself; I commit and say what to push.
+
+### 2026-11-12 · T25: feature freeze and `demo-v1` tag (3 days early)
+- Done early, at Farrel's request: all must-haves and the UI were finished, and F1 and F2 from rehearsal were fixed and verified.
+- **Release checklist** (all passed before tagging):
+  1. Nothing uncommitted
+  2. 74 offline tests pass
+  3. All Python files compile; importing starts no chat and calls no Gemini (default prompt v2)
+  4. Pinned versions in `requirements.txt` match the installed `.venv`
+  5. No Google key pattern in any commit, no private files tracked (`CLAUDE.md`, learning notes, `.env`), no personal mentions
+  6. Gantt chart (Mermaid 10 and 11) and architecture diagram render
+  7. Fresh clone without `.env`: all 74 tests pass
+- Tagged this commit as `demo-v1` (annotated tag).
+- **Freeze rules from now on:** the demo runs from `demo-v1`. Only fixes for bugs found in rehearsal. No new features, no prompt changes, no full eval runs (save the Gemini quota for rehearsal and the demo).
+- **Remaining tasks:** T24 (clean run + backup recording, from the `demo-v1` tag, by Nov 15), T26 (rehearsal, Nov 16), T27 (demo day, Nov 17).
