@@ -87,13 +87,13 @@ gantt
     README final + GitHub push (T23)         :done, t23, 2026-11-11, 1d
     Demo script written (T31)                :done, t31, 2026-11-11, 1d
     Partial rehearsal, finding F1 (T32)      :done, t32, 2026-11-11, 1d
-    Fix F1: IHSG history (T33)               :done, t33, 2026-11-11, 1d
-    Fix F2: source names in search (T34)     :done, t34, 2026-11-12, 1d
+    Fix F1 - IHSG history (T33)              :done, t33, 2026-11-11, 1d
+    Fix F2 - source names in search (T34)    :done, t34, 2026-11-12, 1d
     Streamlit UI (T35)                       :done, t35, 2026-11-12, 1d
     Clean run + recording (T24)              :t24, 2026-11-15, 1d
     Freeze, tag demo-v1 (T25)                :milestone, t25, 2026-11-15, 0d
     Rehearsal (T26)                          :t26, 2026-11-16, 1d
-    Demo day (T27)                     :milestone, t27, 2026-11-17, 0d
+    Demo day (T27)                           :milestone, t27, 2026-11-17, 0d
 ```
 
 ## 3. Technical log
@@ -271,3 +271,11 @@ gantt
 - **Security:** the first server start showed a *Network URL* (`140.112.x.x`), so anyone on the university network could have used the page, and with it the API key and quota. `.streamlit/config.toml` now binds to `127.0.0.1` only (not `localhost`: PowerShell resolved that to IPv6 first and failed). Checked: reachable on 127.0.0.1, not reachable on the network address. Usage statistics are off.
 - **Checks:** 5 offline page tests with Streamlit's `AppTest` and the fake model (page loads, live steps + answer with `$` escaped, example button, quota error keeps history, reset). 72 tests in total. Real server started and stopped (health `ok`, HTTP 200) without asking a question, so no Gemini call.
 - **Not yet done:** a live question through the page (needs Gemini quota, Farrel's OK). Added an optional "bonus" section to `demo_script.md`.
+
+### 2026-11-12 · Fix: Gantt chart broken on GitHub
+- **Found by:** Farrel, on GitHub. Error: "Unable to render rich display. Cannot read properties of undefined (reading 'type')".
+- **Reproduced offline:** installed Mermaid 11 + jsdom in a scratch folder (not the project) and rendered the pushed chart. Same error, at the render step. The README's flowchart, which works on GitHub, passed, so the check matches GitHub.
+- **Cause, found by testing one change at a time:** two task names had a colon, `Fix F1: IHSG history` and `Fix F2: source names in search`. Mermaid splits a task line at its first colon, so the rest of the name was read as task data. Removing the colons fixed it. Changing the milestones didn't (they were fine).
+- **Fix:** renamed them `Fix F1 - …` and `Fix F2 - …`.
+- **Guard:** `tests/test_docs.py` fails if a Gantt task name contains a colon or a task line has an unexpected format. It flags exactly the two broken lines in the old version. 74 tests.
+- **Remaining tasks:** T24 (clean run + backup recording, Nov 15), T25 (freeze + `demo-v1` tag, Nov 15), T26 (rehearsal, Nov 16), T27 (demo day, Nov 17).
